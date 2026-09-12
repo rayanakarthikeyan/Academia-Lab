@@ -1,3 +1,4 @@
+import { APP_NAME } from "./_brand.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { requireUser, createSupabaseClient } from "./_shared.js";
 
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
       metadata: { role: "user" },
     });
 
-    const systemPrompt = `You are an expert teaching assistant at KG Reddy College of Engineering and Technology. 
+    const systemPrompt = `You are an expert teaching assistant at ${APP_NAME}.
 The student is currently working on a programming challenge in the IDE.
 Challenge Statement: ${statement || "Unknown"}
 Student's Current Code:

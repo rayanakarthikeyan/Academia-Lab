@@ -1,3 +1,4 @@
+import { APP_NAME } from "./_brand.js";
 import { randomUUID } from "node:crypto";
 import {
   cleanEmail,
@@ -105,7 +106,7 @@ export default async function handler(req, res) {
       department,
       year,
       section,
-      college: "KG Reddy College of Engineering and Technology",
+      college: APP_NAME,
       is_active: true,
     };
     // The database trigger enrolls both courses atomically with account creation.

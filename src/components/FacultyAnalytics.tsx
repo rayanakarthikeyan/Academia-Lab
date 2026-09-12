@@ -1,3 +1,4 @@
+import { APP_NAME } from '../platform/branding';
 import {
   ArrowLeft,
   ArrowRight,
@@ -304,7 +305,7 @@ export function FacultyAnalytics({
     <div className="mx-auto max-w-[1440px] space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--line)] pb-5">
         <div>
-          <p className="text-xs text-[var(--muted)]">KGRCET</p>
+          <p className="text-xs text-[var(--muted)]">{APP_NAME}</p>
           <h2 className="mt-2 text-2xl font-semibold">
             {compact ? "Faculty overview" : "Student insights"}
           </h2>
@@ -637,7 +638,7 @@ export function FacultyAnalytics({
                 Close
               </button>
             </div>
-            <h1>KGRCET</h1>
+            <h1>{APP_NAME}</h1>
             <h2>
               {report === "roster"
                 ? "Student roster and insights"

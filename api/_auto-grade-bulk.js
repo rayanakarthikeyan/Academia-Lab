@@ -1,3 +1,4 @@
+import { APP_NAME } from "./_brand.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { requireUser, createSupabaseClient } from "./_shared.js";
 
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
       const expectedOutput =
         assignment.test_cases?.[0]?.output || "Not provided";
 
-      const systemPrompt = `You are an expert Computer Science professor at KG Reddy College of Engineering and Technology.
+      const systemPrompt = `You are an expert Computer Science professor at ${APP_NAME}.
 Your task is to evaluate a student's submission for an assignment and grade it.
 
 Assignment Details:

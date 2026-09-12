@@ -1,7 +1,7 @@
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS contact_number TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS department TEXT CHECK (department IN ('CSE', 'CSM', 'CSD'));
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS section TEXT CHECK (section IN ('A', 'B', 'C', 'D', 'E'));
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS college TEXT NOT NULL DEFAULT 'KG Reddy College of Engineering and Technology';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS college TEXT NOT NULL DEFAULT 'AsterLab';
 CREATE INDEX IF NOT EXISTS users_cohort_idx ON public.users (role, department, section);
 CREATE UNIQUE INDEX IF NOT EXISTS users_student_roll_unique ON public.users (upper(roll_number)) WHERE role = 'student' AND roll_number IS NOT NULL;
 ALTER TABLE public.assignments ADD COLUMN IF NOT EXISTS hints JSONB NOT NULL DEFAULT '[]'::jsonb;

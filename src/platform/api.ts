@@ -1,3 +1,4 @@
+import { runJavaInBrowser, type RunOptions } from "./java-browser";
 import type {
   ActivityLog,
   ActivityTemplate,
@@ -60,6 +61,7 @@ function mapResource(row: Record<string, unknown>): LearningResource {
     completion: 0,
     activeLearners: 0,
     publishedAt: String(row.created_at || ""),
+    practiceQuestions: Array.isArray(row.practice_questions) ? row.practice_questions : [],
     curriculumItemId: String(row.curriculum_item_id || ""),
     courseCode: (row.course_code ||
       (row.course_id === "course-dbms"
@@ -269,6 +271,7 @@ export async function publishResource(
     | "unitNumber"
     | "dueDate"
     | "assignedUserIds"
+    | "practiceQuestions"
   >,
 ) {
   const data = await platformMutation(token, "resource", resource);
@@ -339,69 +342,55 @@ export async function submitAssessment(
   });
 }
 
-import initSqlJs from "sql.js";
-
 export async function runCode(
-  token: string,
+  _token: string,
   input: { language: "java" | "sql"; code: string; stdin: string },
+  options: RunOptions = {},
 ) {
   if (input.language === "sql") {
-    try {
-      const startTime = performance.now();
-      const SQL = await initSqlJs({
-        locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+    return new Promise<{
+      status: "passed" | "error";
+      stdout: string;
+      stderr: string;
+      durationMs: number;
+    }>((resolve) => {
+      const worker = new Worker(new URL("./sql.worker.ts", import.meta.url), {
+        type: "module",
       });
-      const db = new SQL.Database();
-      
-      let stdout = "";
-      const results = db.exec(input.code);
-      
-      if (results.length > 0) {
-        for (const result of results) {
-          stdout += result.columns.join(" | ") + "\n";
-          stdout += "-".repeat(result.columns.join(" | ").length) + "\n";
-          for (const row of result.values) {
-            stdout += row.join(" | ") + "\n";
-          }
-          stdout += "\n";
-        }
-      } else {
-        stdout = "Query executed successfully. (No results to display)";
-      }
-      
-      const durationMs = Math.round(performance.now() - startTime);
-      return {
-        status: "passed" as const,
-        stdout: stdout.trim(),
-        stderr: "",
-        durationMs
+      const finish = (result: {
+        status: "passed" | "error";
+        stdout: string;
+        stderr: string;
+        durationMs: number;
+      }) => {
+        clearTimeout(timer);
+        worker.terminate();
+        resolve(result);
       };
-    } catch (e: any) {
-      return {
-        status: "error" as const,
-        stdout: "",
-        stderr: e.message || String(e),
-        durationMs: 0
-      };
-    }
+      const timer = setTimeout(
+        () =>
+          finish({
+            status: "error",
+            stdout: "",
+            stderr:
+              "SQL execution exceeded 10 seconds. Simplify your query and run again.",
+            durationMs: 10000,
+          }),
+        10000,
+      );
+      worker.onmessage = (event) => finish(event.data);
+      worker.onerror = () =>
+        finish({
+          status: "error",
+          stdout: "",
+          stderr: "Unable to start the SQL engine. Reload and try again.",
+          durationMs: 0,
+        });
+      worker.postMessage(input.code);
+    });
   }
 
-  const data = await parseResponse(
-    await fetch(`${API_BASE}/api/code-runner`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(input),
-    }),
-  );
-  return data as {
-    status: "passed" | "failed" | "error";
-    stdout: string;
-    stderr: string;
-    durationMs: number;
-  };
+  return runJavaInBrowser(input.code, input.stdin, options);
 }
 
 export async function loadCoursework(token: string, includeRoster: boolean) {

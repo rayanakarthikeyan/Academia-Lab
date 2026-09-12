@@ -72,7 +72,7 @@ async function seed() {
   if (courseError)
     throw new Error(`Error upserting courses: ${courseError.message}`);
 
-  console.log("Upserting KGR25 subjects...");
+  console.log("Upserting Academic subjects...");
   for (const subject of seedData.subjects) {
     const { error } = await supabase.from("subjects").upsert({
       id: subject.id,

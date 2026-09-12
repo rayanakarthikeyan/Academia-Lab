@@ -2,12 +2,12 @@
 
 const sourceFiles: Record<CourseCode, Record<"theory" | "lab", string>> = {
   JAVA: {
-    theory: "KGR25 B.Tech Object Oriented Programming Through JAVA - Theory",
-    lab: "KGR25 B.Tech Object Oriented Programming Through JAVA - Lab",
+    theory: "Academic B.Tech Object Oriented Programming Through JAVA - Theory",
+    lab: "Academic B.Tech Object Oriented Programming Through JAVA - Lab",
   },
   DBMS: {
-    theory: "Database Management Systems - Theory - KGR25",
-    lab: "Database Management Systems - Lab - KGR25",
+    theory: "Database Management Systems - Theory - Academic",
+    lab: "Database Management Systems - Lab - Academic",
   },
 };
 
@@ -444,7 +444,7 @@ export const curriculumCatalog: CurriculumItem[] = [
     "JAVA",
     20,
     "Message Applet",
-    "Develop the simple message applet required by the KGR25 syllabus and document the legacy runtime requirement.",
+    "Develop the simple message applet required by the Academic syllabus and document the legacy runtime requirement.",
     ["Explain applet lifecycle methods", "Implement a basic applet display"],
     "Applet window displays: 'Welcome to Java Applet Programming'\nLifecycle methods init(), start(), paint(), stop(), destroy() implemented and documented.",
   ),

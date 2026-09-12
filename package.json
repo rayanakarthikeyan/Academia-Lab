@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node scripts/workflow.test.mjs",
+    "test:java": "node scripts/java-browser.test.mjs",
+    "test:features": "node scripts/features-browser.test.mjs",
     "api:local": "node server/local-api.mjs",
     "dev": "node server/dev.mjs",
     "dev:vercel": "vercel dev",

@@ -1,3 +1,4 @@
+import { APP_NAME } from "./_brand.js";
 import { randomUUID } from "node:crypto";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -532,7 +533,7 @@ export default async function handler(req, res) {
           const maxMarks = submissionAssignment.max_marks || 10;
           const expectedOutput =
             submissionAssignment.test_cases?.[0]?.output || "Not provided";
-          const systemPrompt = `You are an expert Computer Science professor at KG Reddy College of Engineering and Technology.
+          const systemPrompt = `You are an expert Computer Science professor at ${APP_NAME}.
 Your task is to evaluate a student's submission for an assignment and grade it.
 Assignment Details:
 - Title: \${submissionAssignment.title}

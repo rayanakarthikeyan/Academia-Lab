@@ -1,26 +1,47 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import brand from "./shared/brand.json";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-export default defineConfig({
-  base: "/",
-  plugins: [react(), tailwindcss()],
-  build: {
-    assetsDir: "assets",
-    cssCodeSplit: true,
-    emptyOutDir: true,
-    sourcemap: false,
-    target: "es2020",
-  },
-  preview: {
-    host: "127.0.0.1",
-    port: 4173,
-  },
-  server: {
-    host: "127.0.0.1",
-    port: 5173,
-    proxy: {
-      "/api": "http://127.0.0.1:8787",
+export default defineConfig(({ mode }) => {
+  const name =
+    loadEnv(mode, process.cwd(), "VITE_").VITE_APP_NAME?.trim() || brand.name;
+  const escapedName = name.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ]!,
+  );
+  return {
+    base: "/",
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: "platform-brand",
+        transformIndexHtml(html) {
+          return html.replaceAll("__APP_NAME__", escapedName);
+        },
+      },
+    ],
+    build: {
+      assetsDir: "assets",
+      cssCodeSplit: true,
+      emptyOutDir: true,
+      sourcemap: false,
+      target: "es2020",
     },
-  },
+    preview: {
+      host: "127.0.0.1",
+      port: 4173,
+    },
+    server: {
+      host: "127.0.0.1",
+      port: 5173,
+      proxy: {
+        "/api": "http://127.0.0.1:8787",
+      },
+    },
+  };
 });

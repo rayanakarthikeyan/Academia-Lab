@@ -7,7 +7,7 @@ export const courses: Course[] = [
     id: "course-java",
     code: "JAVA",
     title: "Object-Oriented Programming through JAVA",
-    description: "KGR25 theory and laboratory work organized unit by unit.",
+    description: "Academic theory and laboratory work organized unit by unit.",
     accent: "cyan",
     faculty: "KGR Faculty",
     enrolled: 0,
@@ -47,7 +47,7 @@ export const courses: Course[] = [
     code: "DBMS",
     title: "Database Management Systems",
     description:
-      "KGR25 database theory, SQL practice, assessments, and experiments.",
+      "Academic database theory, SQL practice, assessments, and experiments.",
     accent: "amber",
     faculty: "KGR Faculty",
     enrolled: 0,

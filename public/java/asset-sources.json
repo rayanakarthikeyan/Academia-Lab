@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/plasma-umass/doppio-demo",
+  "revision": "898e6e5f59f2b30346831f6a735a4d7b1e08ef06",
+  "sha256": {
+    "js/browserfs.min.js": "a6367d60908abdb4c071fa5b10b0b1c0e1ee187659ab8dcbb7c6d7d9de21af03",
+    "js/doppio.js": "cd7042c12608ab0f2765c21d8e74bc1bc1ea71b43361d2cfdfe84dbda69b1ea4",
+    "programs/ecj-4.5.jar": "2d510acfa6a94e231f79c86c70086c67efc04f6ce11bf6751e839308a24f04ed",
+    "doppio_home.zip": "664b26578941c7ece0fc728815c1863fa0973792b3d74cfd89c4d48064414312"
+  }
+}

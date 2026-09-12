@@ -44,8 +44,8 @@
   "engagement_records": [],
   "learning_records": [],
   "courses": [
-    { "id": "course-java", "code": "JAVA", "title": "Object-Oriented Programming through JAVA", "description": "KGR25 theory and laboratory track", "accent": "cyan", "is_active": true },
-    { "id": "course-dbms", "code": "DBMS", "title": "Database Management Systems", "description": "KGR25 theory and laboratory track", "accent": "amber", "is_active": true }
+    { "id": "course-java", "code": "JAVA", "title": "Object-Oriented Programming through JAVA", "description": "Academic theory and laboratory track", "accent": "cyan", "is_active": true },
+    { "id": "course-dbms", "code": "DBMS", "title": "Database Management Systems", "description": "Academic theory and laboratory track", "accent": "amber", "is_active": true }
   ],
   "enrollments": [],
   "resources": [],

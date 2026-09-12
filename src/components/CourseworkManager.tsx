@@ -1,4 +1,6 @@
-import Editor from "@monaco-editor/react";
+import { VisualPreview } from "./VisualPreview";
+import Editor from "./CodeEditor";
+import { javaCompilerHelp, needsDesktopJava } from "../platform/java-support";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -89,9 +91,7 @@ function assignmentCourse(assignment: AssignmentRecord): CourseCode {
 function subjectForItem(item: CurriculumItem, subjects: AssignmentSubject[]) {
   return (
     subjects.find((subject) => courseForSubject(subject) === item.courseCode)
-      ?.id ||
-    subjects[0]?.id ||
-    ""
+      ?.id || ""
   );
 }
 function dueLabel(value: string) {
@@ -120,8 +120,9 @@ function newQuestion(index = 0): AssessmentQuestion {
     marks: 1,
   };
 }
-function AssignmentWorkspace({
+export function AssignmentWorkspace({
   assignment,
+  practiceOnly = false,
   submission,
   session,
   theme,
@@ -129,6 +130,7 @@ function AssignmentWorkspace({
   onBack,
   onSaved,
 }: {
+  practiceOnly?: boolean;
   assignment: AssignmentRecord;
   submission?: LearningRecord;
   session: AuthSession;
@@ -152,7 +154,11 @@ function AssignmentWorkspace({
   const savedAnswers = submission?.metadata?.answers;
   const [stdin, setStdin] = useState(assignment.test_cases?.[0]?.input || "");
   const [hintsUsed, setHintsUsed] = useState<number[]>([]);
-  const external = assignment.execution_environment === "external";
+  const visual = assignment.execution_environment === "visual";
+  const external =
+    !visual &&
+    (assignment.execution_environment === "external" ||
+      (language === "java" && needsDesktopJava(assignment.curriculum_item_id)));
   const [body, setBody] = useState(
     () =>
       submission?.body ||
@@ -175,6 +181,9 @@ function AssignmentWorkspace({
   });
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [runPhase, setRunPhase] = useState("Running…");
+  const runController = useRef<AbortController | null>(null);
+  useEffect(() => () => runController.current?.abort(), []);
   const [locked, setLocked] = useState(
     Boolean(submission && submission.status !== "draft"),
   );
@@ -214,6 +223,11 @@ function AssignmentWorkspace({
     return () => window.clearTimeout(timer);
   }, [answers, body, isMcq, localKey, locked]);
   const persist = async (status: "draft" | "submitted", automatic = false) => {
+    if (practiceOnly) {
+      localStorage.setItem(localKey, body);
+      setNotice("Practice saved on this device.");
+      return;
+    }
     const unanswered = isMcq
       ? assignment.questions.filter(
           (question) => answers[question.id] === undefined,
@@ -247,7 +261,7 @@ function AssignmentWorkspace({
           assignment_type: type,
           work_mode: mode,
           answers: isMcq ? answers : undefined,
-          language: isCoding ? language : null,
+          language: isCoding ? (visual ? "html" : language) : null,
           validation_status: isCoding ? output.status : null,
           violation_count: type === "assessment" ? proctor.violations : 0,
           automatic,
@@ -283,15 +297,22 @@ function AssignmentWorkspace({
     void persist("submitted", automatic);
   };
   const execute = async () => {
+    if (running) return;
+    runController.current = new AbortController();
+    setRunPhase("Starting compiler…");
     setRunning(true);
     setBottomTab("output");
     setError("");
     try {
-      const result = await runCode(session.token, {
-        language,
-        code: body,
-        stdin,
-      });
+      const result = await runCode(
+        session.token,
+        {
+          language,
+          code: body,
+          stdin,
+        },
+        { signal: runController.current.signal, onProgress: setRunPhase },
+      );
       setOutput(result);
       telemetry.recordRun(result);
     } catch (caught) {
@@ -367,7 +388,7 @@ function AssignmentWorkspace({
       <header className="flex flex-wrap items-center gap-3 border-b border-[var(--line)] pb-4">
         <button className="secondary-button" onClick={onBack} type="button">
           <ArrowLeft size={16} />
-          Assignments
+          {practiceOnly ? "Back to questions" : "Assignments"}
         </button>
         <div className="min-w-0 flex-1 basis-[220px]">
           <div className="flex flex-wrap items-center gap-2">
@@ -421,22 +442,29 @@ function AssignmentWorkspace({
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-[var(--muted)]">
             {assignment.description}
           </p>
-          <div className="mt-5 border-t border-[var(--line)] pt-4 text-xs text-[var(--muted)]">
-            <p className="flex items-center gap-2">
-              <CalendarDays size={14} />
-              Deadline: {dueLabel(assignment.due_date)}
-            </p>
-            <p className="mt-2 flex items-center gap-2">
-              <ClipboardCheck size={14} />
-              Maximum marks: {assignment.max_marks}
-            </p>
-          </div>
+          {!practiceOnly && (
+            <div className="mt-5 border-t border-[var(--line)] pt-4 text-xs text-[var(--muted)]">
+              <p className="flex items-center gap-2">
+                <CalendarDays size={14} />
+                Deadline: {dueLabel(assignment.due_date)}
+              </p>
+              <p className="mt-2 flex items-center gap-2">
+                <ClipboardCheck size={14} />
+                Maximum marks: {assignment.max_marks}
+              </p>
+            </div>
+          )}
           {external && (
             <p className="mt-4 text-xs text-amber-600">
               External lab environment / faculty-reviewed results
             </p>
           )}
-          {!isMcq && (
+          {isCoding && language === "java" && !external && !visual && (
+            <p className="mt-4 text-xs text-[var(--muted)]">
+              {javaCompilerHelp}
+            </p>
+          )}
+          {!isMcq && !visual && (
             <div className="mt-5 border-t border-[var(--line)] pt-4">
               <h3 className="text-xs font-semibold">Sample input</h3>
               <pre className="mt-2 whitespace-pre-wrap break-words text-xs">
@@ -486,7 +514,9 @@ function AssignmentWorkspace({
               {isMcq
                 ? `${assignment.questions.length} questions`
                 : isCoding
-                  ? `Main.${language === "java" ? "java" : "sql"}`
+                  ? visual
+                    ? "index.html"
+                    : `Main.${language === "java" ? "java" : "sql"}`
                   : "Response"}
             </strong>
             {locked && (
@@ -545,7 +575,7 @@ function AssignmentWorkspace({
           ) : isCoding ? (
             <Editor
               height="430px"
-              language={language}
+              language={visual ? "html" : language}
               onChange={(value) => {
                 setBody(value || "");
                 telemetry.handleChange(value);
@@ -573,15 +603,23 @@ function AssignmentWorkspace({
               value={body}
             />
           )}
-          {isCoding && !external && (
+          {visual && <VisualPreview code={body} />}
+          {isCoding && !external && !visual && (
             <label className="block border-t border-[var(--line)] p-4 text-xs">
-              Standard input
+              Your input (stdin)
               <textarea
                 className="mt-2 block w-full rounded-md border border-[var(--line)] bg-[var(--surface-2)] p-2 font-mono"
                 rows={3}
+                placeholder="Type your own input here. Separate values with spaces or new lines, then click Run."
+                maxLength={10000}
+                disabled={locked}
                 value={stdin}
                 onChange={(event) => setStdin(event.target.value)}
               />
+              <span className="mt-2 block text-[var(--muted)]">
+                Change these values and run again to test different cases. Input
+                is supplied when the program starts.
+              </span>
             </label>
           )}
           {isCoding && (
@@ -621,7 +659,7 @@ function AssignmentWorkspace({
                     <pre
                       className={`whitespace-pre-wrap text-xs leading-5 ${output.status === "passed" ? "text-emerald-600" : output.status === "idle" ? "text-[var(--muted)]" : "text-rose-600"}`}
                     >
-                      {running ? "Running..." : actualOutput}
+                      {running ? runPhase : actualOutput}
                     </pre>
                   </div>
                 </div>
@@ -649,7 +687,16 @@ function AssignmentWorkspace({
             </div>
           )}
           <footer className="flex flex-wrap justify-end gap-2 border-t border-[var(--line)] p-4">
-            {isCoding && (
+            {running && language === "java" && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => runController.current?.abort()}
+              >
+                Stop execution
+              </button>
+            )}
+            {isCoding && !visual && (
               <button
                 className="secondary-button"
                 disabled={running || locked || external}
@@ -673,24 +720,26 @@ function AssignmentWorkspace({
               <Save size={16} />
               Save draft
             </button>
-            <button
-              className="primary-button"
-              disabled={
-                saving ||
-                locked ||
-                isPastDeadline(assignment.due_date) ||
-                (isMcq && assignment.questions.length === 0)
-              }
-              onClick={() => void persist("submitted")}
-              type="button"
-            >
-              {saving ? (
-                <LoaderCircle className="animate-spin" size={16} />
-              ) : (
-                <Send size={16} />
-              )}
-              {locked ? "Submitted" : "Submit final"}
-            </button>
+            {!practiceOnly && (
+              <button
+                className="primary-button"
+                disabled={
+                  saving ||
+                  locked ||
+                  isPastDeadline(assignment.due_date) ||
+                  (isMcq && assignment.questions.length === 0)
+                }
+                onClick={() => void persist("submitted")}
+                type="button"
+              >
+                {saving ? (
+                  <LoaderCircle className="animate-spin" size={16} />
+                ) : (
+                  <Send size={16} />
+                )}
+                {locked ? "Submitted" : "Submit final"}
+              </button>
+            )}
           </footer>
         </section>
       </div>
@@ -725,7 +774,7 @@ function StudentCoursework({
 
   const availableCourseCodes = useMemo(
     () => Array.from(new Set(assignments.map(assignmentCourse))),
-    [assignments]
+    [assignments],
   );
 
   const visible = useMemo(
@@ -753,7 +802,7 @@ function StudentCoursework({
       : initialType === "assessment"
         ? "Timed, proctored assessments with automatic submission guardrails."
         : initialType === "lab"
-          ? "Official KGR25 experiments with an IDE workspace and attempt tracking."
+          ? "Official Academic experiments with an IDE workspace and attempt tracking."
           : "Assigned academic work organized by course and unit.";
   if (active)
     return (
@@ -781,7 +830,7 @@ function StudentCoursework({
         </div>
         <span className="tag cyan">
           <ClipboardList size={13} />
-          KGR25 curriculum
+          Academic curriculum
         </span>
       </section>
       <div className="flex flex-wrap gap-3">
@@ -940,8 +989,12 @@ export function CourseworkManager({
   const initialItem =
     curriculumCatalog.find((item) => item.track === requiredTrack) ||
     curriculumCatalog[0];
-  const [assignments, setAssignments] = useState<AssignmentRecord[]>(initialAssignments || []);
-  const [submissions, setSubmissions] = useState<LearningRecord[]>(initialSubmissions || []);
+  const [assignments, setAssignments] = useState<AssignmentRecord[]>(
+    initialAssignments || [],
+  );
+  const [submissions, setSubmissions] = useState<LearningRecord[]>(
+    initialSubmissions || [],
+  );
   const [subjects, setSubjects] = useState<AssignmentSubject[]>([]);
   const [students, setStudents] = useState<SessionUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -960,9 +1013,9 @@ export function CourseworkManager({
   );
   const [hints, setHints] = useState("");
   const [sampleInput, setSampleInput] = useState("");
-  const [environment, setEnvironment] = useState<"runner" | "external">(
-    "runner",
-  );
+  const [environment, setEnvironment] = useState<
+    "runner" | "external" | "visual"
+  >("runner");
   const [department, setDepartment] = useState("");
   const [section, setSection] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -1049,7 +1102,13 @@ export function CourseworkManager({
     return () => {
       active = false;
     };
-  }, [initialItem, isFaculty, session.token, initialAssignments, initialSubmissions]);
+  }, [
+    initialItem,
+    isFaculty,
+    session.token,
+    initialAssignments,
+    initialSubmissions,
+  ]);
   const applyTemplate = (item: CurriculumItem, template: ActivityTemplate) => {
     setDescription(
       item.brief +
@@ -1623,10 +1682,15 @@ export function CourseworkManager({
                 <select
                   value={environment}
                   onChange={(event) =>
-                    setEnvironment(event.target.value as "runner" | "external")
+                    setEnvironment(
+                      event.target.value as "runner" | "external" | "visual",
+                    )
                   }
                 >
                   <option value="runner">Isolated code runner</option>
+                  <option value="visual">
+                    Visual canvas (HTML / JavaScript)
+                  </option>
                   <option value="external">
                     External lab / faculty review
                   </option>

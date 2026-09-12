@@ -1,3 +1,4 @@
+import { APP_NAME } from '../platform/branding';
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -85,7 +86,7 @@ export function AuthScreen({
             </span>
             <div>
               <strong className="block text-base text-[var(--ink)]">
-                KG Reddy College of Engineering and Technology
+                {APP_NAME}
               </strong>
               <span className="text-xs text-[var(--muted)]">
                 Academic Learning Platform
@@ -107,8 +108,7 @@ export function AuthScreen({
                 Theory becomes practice here.
               </h1>
               <p className="mt-6 max-w-[560px] text-lg leading-8 text-[var(--muted)]">
-                The academic workspace for KG Reddy College of Engineering and
-                Technology students, with guided theory, practice, proctored
+                The academic workspace for {APP_NAME} students, with guided theory, practice, proctored
                 assessment, and instrumented labs.
               </p>
             </motion.div>
@@ -158,7 +158,7 @@ export function AuthScreen({
               </span>
               <div>
                 <strong className="block">
-                  KG Reddy College of Engineering and Technology
+                  {APP_NAME}
                 </strong>
                 <span className="text-xs text-[var(--muted)]">
                   Academic Learning Platform
@@ -291,9 +291,9 @@ export function AuthScreen({
                     </select>
                   </label>
                   <label className="auth-label sm:col-span-2">
-                    College
+                    Platform
                     <span className="mt-2 block rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm leading-5 text-[var(--ink)]">
-                      KG Reddy College of Engineering and Technology
+                      {APP_NAME}
                     </span>
                   </label>
                 </div>

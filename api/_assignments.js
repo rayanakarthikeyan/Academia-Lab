@@ -82,8 +82,11 @@ function normalizeAssignmentPayload(body, { partial = false } = {}) {
       .filter(Boolean)
       .slice(0, 10);
   if (!partial || body.executionEnvironment !== undefined) {
-    payload.execution_environment =
-      body.executionEnvironment === "external" ? "external" : "runner";
+    payload.execution_environment = ["external", "visual"].includes(
+      body.executionEnvironment,
+    )
+      ? body.executionEnvironment
+      : "runner";
   }
   if (!partial || body.workMode !== undefined || body.work_mode !== undefined) {
     const value = cleanText(body.workMode || body.work_mode).toLowerCase();
@@ -220,6 +223,9 @@ export default async function handler(req, res) {
               })
               .map((assignment) => ({
                 ...assignment,
+                test_cases: (assignment.test_cases || []).filter(
+                  (test) => !test.hidden,
+                ),
                 questions: Array.isArray(assignment.questions)
                   ? assignment.questions.map(
                       ({ correctIndex: _correctIndex, ...question }) =>
@@ -261,6 +267,8 @@ export default async function handler(req, res) {
       const validationError = validateAssignment(payload);
       if (validationError)
         return res.status(400).json({ error: validationError });
+      const subjectError = await validateSubject(supabase, payload);
+      if (subjectError) return res.status(400).json({ error: subjectError });
       payload.id = cleanText(body.id) || createAssignmentId(payload.title);
       payload.assigned = toInteger(body.assigned);
       payload.submitted = toInteger(body.submitted);
@@ -302,16 +310,16 @@ export default async function handler(req, res) {
         .limit(1);
       if (attemptError) throw attemptError;
       if (attempts?.length)
-        return res
-          .status(409)
-          .json({
-            error:
-              "Students have started this assignment. Publish a new copy to change it.",
-          });
+        return res.status(409).json({
+          error:
+            "Students have started this assignment. Publish a new copy to change it.",
+        });
       const merged = { ...existing, ...payload };
       const validationError = validateAssignment(merged);
       if (validationError)
         return res.status(400).json({ error: validationError });
+      const subjectError = await validateSubject(supabase, merged);
+      if (subjectError) return res.status(400).json({ error: subjectError });
       payload.max_marks = merged.max_marks;
 
       const { data, error } = await supabase
@@ -338,11 +346,16 @@ export default async function handler(req, res) {
 }
 
 function validateAssignment(payload) {
+  if (!payload.title?.trim()) return "A title is required";
+  if (!payload.subject_id) return "Choose a matching subject";
+  if (!Number.isFinite(payload.max_marks) || payload.max_marks <= 0)
+    return "Marks must be greater than zero";
   // Empty assigned_user_ids means "all students" (current and future).
   // No validation needed on the list itself.
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(payload.due_date || "") ||
-    !Number.isFinite(Date.parse(payload.due_date))
+    !Number.isFinite(Date.parse(payload.due_date)) ||
+    new Date(payload.due_date).toISOString().slice(0, 10) !== payload.due_date
   )
     return "A valid deadline is required";
   if (payload.assignment_type === "theory")
@@ -375,5 +388,27 @@ function validateAssignment(payload) {
     payload.max_marks = qs.reduce((sum, q) => sum + q.marks, 0);
   } else if (!payload.test_cases?.[0]?.output?.trim())
     return "Add expected output or expected observations";
+  return null;
+}
+
+async function validateSubject(supabase, payload) {
+  const { data, error } = await supabase
+    .from("subjects")
+    .select("*")
+    .eq("id", payload.subject_id)
+    .limit(1);
+  if (error) throw error;
+  const subject = data?.[0];
+  if (!subject || subject.is_active === false)
+    return "Choose an active subject";
+  const name = `${subject.id} ${subject.name}`.toLowerCase();
+  if (
+    payload.course_code === "JAVA"
+      ? !name.includes("java")
+      : !/dbms|database/.test(name)
+  )
+    return "The subject must match the selected course";
+  if (payload.assignment_type === "lab" && subject.type === "Theory Only")
+    return "Choose a subject that supports laboratory work";
   return null;
 }

@@ -1,3 +1,5 @@
+import { PracticeQuestionEditor } from "./PracticeQuestionEditor";
+import type { PracticeQuestion } from "../platform/types";
 import {
   BookOpenText,
   CalendarDays,
@@ -58,6 +60,9 @@ export function FacultyResourceManager({
   const initialItem = curriculumCatalog.find(
     (item) => item.courseCode === "JAVA" && item.track === "theory",
   )!;
+  const [practiceQuestions, setPracticeQuestions] = useState<
+    PracticeQuestion[]
+  >([]);
   const [showForm, setShowForm] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ResourceType>("all");
@@ -200,6 +205,7 @@ export function FacultyResourceManager({
 
   const publish = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (publishing) return;
     const normalizedUrl = form.externalUrl.trim();
     const validYoutube = /(?:youtube\.com|youtu\.be)/i.test(normalizedUrl);
     const validPdf =
@@ -217,7 +223,7 @@ export function FacultyResourceManager({
       );
       return;
     }
-    if (recipientCount === 0) {
+    if (audience === "selected" && recipientCount === 0) {
       setNotice("Register or select at least one student before publishing.");
       return;
     }
@@ -226,6 +232,7 @@ export function FacultyResourceManager({
     setNotice("");
     try {
       const resource = await publishResource(token, {
+        practiceQuestions,
         courseId: course === "JAVA" ? "course-java" : "course-dbms",
         title: form.title,
         topic: selectedItem.title,
@@ -236,16 +243,16 @@ export function FacultyResourceManager({
         courseCode: course,
         unitNumber: unit,
         dueDate: form.dueDate,
-        assignedUserIds:
-          audience === "all"
-            ? students.map((student) => student.id)
-            : selectedStudentIds,
+        assignedUserIds: audience === "all" ? [] : selectedStudentIds,
       });
       onChange([resource, ...resources]);
+      setPracticeQuestions([]);
       setForm((current) => ({ ...current, externalUrl: "" }));
       setShowForm(false);
       setNotice(
-        `Theory resource assigned to ${recipientCount} student${recipientCount === 1 ? "" : "s"}.`,
+        audience === "all"
+          ? "Resource and practice published to all current and future students."
+          : `Resource and practice assigned to ${recipientCount} student${recipientCount === 1 ? "" : "s"}.`,
       );
     } catch (error) {
       setNotice(
@@ -489,6 +496,11 @@ export function FacultyResourceManager({
               </section>
             </div>
 
+            <PracticeQuestionEditor
+              questions={practiceQuestions}
+              onChange={setPracticeQuestions}
+              course={course}
+            />
             <section className="border-b border-[var(--line)] p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -606,7 +618,10 @@ export function FacultyResourceManager({
               </p>
               <button
                 className="primary-button"
-                disabled={publishing || recipientCount === 0}
+                disabled={
+                  publishing ||
+                  (audience === "selected" && recipientCount === 0)
+                }
                 type="submit"
               >
                 {publishing ? (

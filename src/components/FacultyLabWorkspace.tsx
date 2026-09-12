@@ -1,3 +1,4 @@
+import { visualStarter } from "../platform/visual-labs";
 import {
   CalendarDays,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { createCourseworkAssignment, loadCoursework } from '../platform/api';
 import { curriculumCatalog } from '../platform/curriculum';
+import { needsDesktopJava } from '../platform/java-support';
 import type {
   AssignmentRecord,
   AssignmentSubject,
@@ -37,6 +39,7 @@ interface ExperimentDraft {
   outcomes: string[];
   unit: number;
   isCustom?: boolean;
+  environment?: "runner" | "external" | "visual";
 }
 
 function defaultDueDate() {
@@ -50,9 +53,8 @@ function subjectForCourse(courseCode: CourseCode, subjects: AssignmentSubject[])
     subjects.find((s) =>
       courseCode === 'JAVA'
         ? s.name.toLowerCase().includes('java') || s.id.includes('java')
-        : s.name.toLowerCase().includes('dbms') || s.id.includes('dbms'),
+        : /dbms|database/i.test(s.name + ' ' + s.id),
     )?.id ||
-    subjects[0]?.id ||
     ''
   );
 }
@@ -92,6 +94,12 @@ function EditPanel({
         </button>
       </div>
 
+      <label>Execution environment
+        <select value={draft.environment || (draft.courseCode === 'JAVA' && needsDesktopJava(draft.id) ? 'external' : 'runner')} onChange={e => set('environment', e.target.value)}>
+          <option value="runner">Built-in Java / SQL</option><option value="external">Desktop Java / external lab</option><option value="visual">Visual canvas (HTML / JavaScript)</option>
+        </select>
+      </label>
+      {draft.environment === 'visual' && <button type="button" className="secondary-button" onClick={() => set('starterCode', visualStarter)}>Use traffic light visual example</button>}
       <label className="block text-xs font-semibold">
         Experiment Title
         <input
@@ -216,6 +224,26 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         curriculumCatalog
           .filter((item) => item.track === 'lab')
           .forEach((item) => { d[item.id] = makeDraftFromItem(item); });
+        const custom: ExperimentDraft[] = [];
+        const deadlines: Record<string, string> = {};
+        data.assignments.filter(a => a.assignment_type === 'lab').forEach(a => {
+          const id = a.curriculum_item_id || a.id;
+          const existing = d[id];
+          const draft: ExperimentDraft = {
+            id, courseCode: a.course_code, label: existing?.label || 'Custom experiment',
+            title: a.title, brief: a.description, starterCode: a.starter_code,
+            expectedOutput: a.test_cases?.[0]?.output || '', suggestedMarks: a.max_marks,
+            outcomes: existing?.outcomes || [], unit: a.unit_number,
+            environment: a.execution_environment, isCustom: !existing,
+          };
+          d[id] = draft;
+          pub[id] = true;
+          deadlines[id] = a.due_date;
+          if (!existing) custom.push(draft);
+        });
+        setCustomExperiments(custom);
+        setDueDates(deadlines);
+        setPublished({ ...pub });
         setDrafts(d);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
@@ -250,6 +278,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     drafts[item.id] || makeDraftFromItem(item);
 
   const publishExperiment = async (draft: ExperimentDraft) => {
+    if (publishing[draft.id] || published[draft.id]) return;
     setError('');
     setNotice('');
     if (!draft.expectedOutput.trim()) {
@@ -260,6 +289,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     setPublishing((prev) => ({ ...prev, [draft.id]: true }));
     try {
       const subjectId = subjectForCourse(draft.courseCode, subjects);
+      if (!subjectId) throw new Error("No matching subject exists for this course. Add the Java or DBMS subject before publishing.");
       // Empty assigned_user_ids = publish to ALL students (current + future)
       await createCourseworkAssignment(session.token, {
         title: draft.title,
@@ -280,13 +310,13 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         unitNumber: draft.unit,
         durationMinutes: 60,
         workMode: 'ide',
-        executionEnvironment: 'runner',
+        executionEnvironment: draft.environment || (draft.courseCode === 'JAVA' && needsDesktopJava(draft.id) ? 'external' : 'runner'),
         hints: [],
         questions: [],
       });
       setPublished((prev) => ({ ...prev, [draft.id]: true }));
       setEditingId(null);
-      setNotice(draft.label + ': ' + draft.title + ' published — visible to all students including future registrants.');
+      setNotice(draft.label + ': ' + draft.title + ' published � visible to all students including future registrants.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish experiment');
     } finally {
@@ -358,12 +388,16 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
               {!hasOutput && !isPublished && <span className="tag" style={{ background: 'rgba(251,191,36,0.1)', color: '#d97706' }}>Needs output</span>}
             </div>
             <h3 className="mt-2 text-sm font-semibold leading-snug">{draft.title || '(Untitled experiment)'}</h3>
+            {draft.courseCode === 'JAVA' && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+              {draft.environment === 'visual' ? 'Interactive visual lab · HTML / JavaScript' : needsDesktopJava(draft.id) ? 'Desktop Java required · GUI, JDBC or applet experiment' : 'Built-in Java 8 compiler · runs in the browser without a daily quota'}
+            </p>}
           </div>
           <div className="flex gap-1 shrink-0">
             <button
               className="icon-button"
               type="button"
               title={isEditing ? 'Close editor' : 'Edit experiment'}
+              disabled={isPublished || isPublishing}
               onClick={() => setEditingId(isEditing ? null : draft.id)}
             >
               {isEditing ? <X size={14} /> : <Pencil size={14} />}
@@ -376,7 +410,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
             >
               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
-            {onRemove && (
+            {onRemove && !isPublished && (
               <button className="icon-button" type="button" title="Remove" onClick={onRemove}>
                 <Trash2 size={14} />
               </button>
@@ -421,6 +455,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
             Deadline
             <input
               type="date"
+              disabled={isPublished || isPublishing}
               min={new Date().toISOString().slice(0, 10)}
               value={getDue(draft.id)}
               onChange={(e) => setDueDates((prev) => ({ ...prev, [draft.id]: e.target.value }))}
@@ -430,7 +465,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
           </label>
           <button
             className={'primary-button w-full' + (isPublished ? ' opacity-70' : '')}
-            disabled={isPublishing || !draft.title.trim()}
+            disabled={loading || isPublished || isPublishing || !draft.title.trim()}
             onClick={() => void publishExperiment(draft)}
             type="button"
           >
@@ -444,7 +479,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
             {isPublishing
               ? 'Publishing...'
               : isPublished
-                ? 'Re-publish to all students'
+                ? 'Published to all students'
                 : 'Publish to all students'}
           </button>
           {!isPublished && (
@@ -500,7 +535,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
           <p className="text-xs font-bold uppercase tracking-[.16em] text-cyan-600">Lab Workspace</p>
           <h2 className="mt-1 text-2xl font-semibold">Publish Experiments</h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-            Edit any experiment, set a deadline, and publish — visible to all students, current and future.
+            Edit any experiment, set a deadline, and publish � visible to all students, current and future.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -544,7 +579,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
       {/* Curriculum experiments */}
       <div>
         {filteredCustom.length > 0 && (
-          <p className="mb-3 text-xs font-bold uppercase tracking-[.14em]" style={{ color: 'var(--muted)' }}>KGR25 Curriculum</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[.14em]" style={{ color: 'var(--muted)' }}>Academic Curriculum</p>
         )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {labExperiments.map((item) => renderCard(getDraft(item)))}

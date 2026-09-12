@@ -1,4 +1,4 @@
-import Editor from "@monaco-editor/react";
+import Editor from "./CodeEditor";
 import {
   AlertCircle,
   Braces,
@@ -15,7 +15,7 @@ import {
   Send,
   TerminalSquare,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorTelemetry } from "../hooks/useEditorTelemetry";
 import { runCode, aiChat } from "../platform/api";
 import { labChallenges } from "../platform/demo";
@@ -43,6 +43,12 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
     ),
   );
   const [running, setRunning] = useState(false);
+  const [stdinByChallenge, setStdinByChallenge] = useState<
+    Record<string, string>
+  >({});
+  const [runPhase, setRunPhase] = useState("Starting compiler…");
+  const runController = useRef<AbortController | null>(null);
+  useEffect(() => () => runController.current?.abort(), []);
   const [output, setOutput] = useState({
     status: "idle" as "idle" | "passed" | "failed" | "error",
     stdout: "Run your code to see output.",
@@ -66,14 +72,21 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
   });
 
   const execute = async () => {
+    if (running) return;
+    runController.current = new AbortController();
+    setRunPhase("Starting compiler…");
     setRunning(true);
     setBottomTab("output");
     try {
-      const result = await runCode(session.token, {
-        language: challenge.language,
-        code,
-        stdin: challenge.sampleInput,
-      });
+      const result = await runCode(
+        session.token,
+        {
+          language: challenge.language,
+          code,
+          stdin: stdinByChallenge[challenge.id] ?? challenge.sampleInput,
+        },
+        { signal: runController.current.signal, onProgress: setRunPhase },
+      );
       setOutput(result);
       telemetry.recordRun(result);
     } catch (caught) {
@@ -91,6 +104,7 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
   };
 
   const selectChallenge = (id: string) => {
+    runController.current?.abort();
     setChallengeId(id);
     setOutput({
       status: "idle",
@@ -142,6 +156,7 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
           <select
             className="h-9 w-full appearance-none rounded-md border border-[var(--line)] bg-[var(--surface-2)] pl-3 pr-9 text-xs font-medium text-[var(--ink)] outline-none focus:border-cyan-500"
             value={challengeId}
+            disabled={running}
             onChange={(e) => selectChallenge(e.target.value)}
           >
             {labChallenges.map((item) => (
@@ -172,6 +187,15 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
           )}
           Run
         </button>
+        {running && challenge.language === "java" && (
+          <button
+            className="lab-button"
+            type="button"
+            onClick={() => runController.current?.abort()}
+          >
+            Stop
+          </button>
+        )}
         <button
           className="lab-button primary"
           onClick={() => {
@@ -240,7 +264,7 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
           </div>
         </aside>
 
-        <section className="grid min-h-[720px] min-w-0 grid-rows-[minmax(390px,58%)_minmax(260px,42%)]">
+        <section className="grid min-h-[720px] min-w-0 grid-rows-[minmax(390px,1fr)_auto]">
           <div className="min-h-0 border-b border-[var(--line)]">
             <div className="flex h-10 items-center border-b border-[var(--line)] bg-[var(--surface)] px-3">
               <span className="flex h-full items-center gap-2 border-b-2 border-cyan-500 px-2 text-xs text-[var(--ink)]">
@@ -289,6 +313,29 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
           </div>
 
           <div className="min-h-0 bg-[var(--surface)]">
+            {challenge.language === "java" && (
+              <label className="block border-b border-[var(--line)] p-3 text-xs">
+                Your input (stdin)
+                <textarea
+                  className="mt-2 block w-full rounded-md border border-[var(--line)] bg-[var(--surface-2)] p-2 font-mono"
+                  rows={3}
+                  maxLength={10000}
+                  placeholder="Enter your own values, separated by spaces or new lines."
+                  value={
+                    stdinByChallenge[challenge.id] ?? challenge.sampleInput
+                  }
+                  onChange={(event) =>
+                    setStdinByChallenge((current) => ({
+                      ...current,
+                      [challenge.id]: event.target.value,
+                    }))
+                  }
+                />
+                <span className="mt-1 block text-[var(--muted)]">
+                  Change the input and run again to test another case.
+                </span>
+              </label>
+            )}
             <div className="flex h-10 items-center border-b border-[var(--line)] px-3">
               <button
                 className={`lab-tab ${bottomTab === "output" ? "active" : ""}`}
@@ -340,7 +387,7 @@ export function LabWorkspace({ session, onEvent, theme }: LabWorkspaceProps) {
                   {running ? (
                     <div className="mt-5 flex items-center gap-2 text-xs text-[var(--accent)]">
                       <LoaderCircle size={15} className="animate-spin" />
-                      Compiling and running...
+                      {runPhase}
                     </div>
                   ) : (
                     <pre

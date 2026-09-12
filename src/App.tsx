@@ -1,3 +1,4 @@
+import { APP_NAME } from './platform/branding';
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -384,6 +385,7 @@ export default function App() {
     if (view === "java-learn")
       return (
         <ResourceViewer
+          session={session} theme={theme}
           user={session.user}
           resources={learningResources}
           courseFilter="JAVA"
@@ -393,6 +395,7 @@ export default function App() {
     if (view === "dbms-learn")
       return (
         <ResourceViewer
+          session={session} theme={theme}
           user={session.user}
           resources={visibleResources}
           courseFilter="DBMS"
@@ -506,7 +509,7 @@ export default function App() {
             </span>
             <span>
               <strong className="block text-[15px] leading-tight text-[var(--ink)]">
-                KGRCET
+                {APP_NAME}
               </strong>
               <span className="text-xs text-[var(--muted)]">
                 Academic Learning Platform

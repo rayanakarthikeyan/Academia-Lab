@@ -1,3 +1,4 @@
+import { normalizePracticeQuestions } from "./_practice.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   cleanText,
@@ -270,6 +271,36 @@ export default async function handler(req, res) {
             : ["courseId", "title", "durationMinutes"];
         const missing = requireFields(body, required);
         if (missing) return res.status(400).json({ error: missing });
+        if (entity === "resource") {
+          let url;
+          try {
+            url = new URL(body.externalUrl);
+          } catch {
+            return res
+              .status(400)
+              .json({ error: "Enter a valid resource URL" });
+          }
+          if (
+            !["https:", "http:"].includes(url.protocol) ||
+            !["youtube", "pdf"].includes(body.type)
+          )
+            return res
+              .status(400)
+              .json({ error: "Choose a video or PDF with an HTTP(S) URL" });
+          if (
+            !["JAVA", "DBMS"].includes(body.courseCode) ||
+            body.courseId !==
+              (body.courseCode === "JAVA" ? "course-java" : "course-dbms")
+          )
+            return res.status(400).json({ error: "Choose a matching course" });
+          if (
+            !Number.isFinite(Number(body.durationMinutes)) ||
+            Number(body.durationMinutes) <= 0
+          )
+            return res
+              .status(400)
+              .json({ error: "Study duration must be greater than zero" });
+        }
         const payload =
           entity === "resource"
             ? {
@@ -292,6 +323,9 @@ export default async function handler(req, res) {
                   ? body.assignedUserIds.map(cleanText).filter(Boolean)
                   : [],
                 is_published: body.isPublished !== false,
+                practice_questions: normalizePracticeQuestions(
+                  body.practiceQuestions,
+                ),
                 created_at: now,
                 updated_at: now,
               }
@@ -373,6 +407,10 @@ export default async function handler(req, res) {
     const allowed =
       entity === "resource"
         ? {
+            practice_questions:
+              body.practiceQuestions === undefined
+                ? undefined
+                : normalizePracticeQuestions(body.practiceQuestions),
             title: body.title,
             topic: body.topic,
             external_url: body.externalUrl,

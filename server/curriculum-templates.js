@@ -1,4 +1,4 @@
-// Syllabus sequence follows the four KGR25 PDFs. Tasks, fixtures, MCQs and hints
+// Syllabus sequence follows the four Academic PDFs. Tasks, fixtures, MCQs and hints
 // below are editable teaching examples, not official model answers.
 const javaStarter = "public class Main {\n  public static void main(String[] args) {\n    // Implement the task here.\n  }\n}\n";
 const sqlStarter = "-- Create the sample tables and implement the task below.\n";
@@ -83,8 +83,8 @@ export const activityTemplates = {
     "Build the integer-division desktop UI from the syllabus: Num1 and Num2 input fields, Divide button, read-only Result field, and exception dialogs. Test 12/3, 12/0 and 'abc'/3. Submit Java source plus observed results in source comments. Run it in a desktop Java lab environment.",
     "12 / 3 -> Result: 4\n12 / 0 -> ArithmeticException dialog\nabc / 3 -> NumberFormatException dialog",
     ["Parse inputs with Integer.parseInt.", "Catch formatting and arithmetic failures separately.", "Create Swing components on the event-dispatch thread."]),
-  "java-lab-11": desktop(
-    "Implement three threads: a generator produces a random integer every second for five iterations; the square worker handles even values and the cube worker handles odd values. Add a deterministic test mode with inputs 2,3,4,5,6 and join all workers. Submit source and a trace. Use a local JVM because the timed run may exceed the portal runner timeout.",
+  "java-lab-11": java(
+    "Implement three threads: a generator produces a random integer every second for five iterations; the square worker handles even values and the cube worker handles odd values. Add a deterministic test mode with inputs 2,3,4,5,6 and join all workers. Submit source and a trace. The built-in browser compiler supports this bounded run; keep execution within 15 seconds.",
     "Deterministic test results (order may vary):\n2 -> square 4\n3 -> cube 27\n4 -> square 16\n5 -> cube 125\n6 -> square 36",
     ["Use separate queues for even and odd work.", "Send a termination marker to both workers.", "Thread scheduling does not guarantee output ordering."]),
   "java-lab-12": java(
@@ -93,11 +93,11 @@ export const activityTemplates = {
   "java-lab-13": java(
     "Create input.txt containing exactly ABCDEFGH (UTF-8, no newline). Split its eight bytes into three balanced parts, giving earlier parts the extra bytes. Name files input.txt.part1, input.txt.part2, input.txt.part3. Print each name and content. Create fixtures within the program rather than accessing a personal file.",
     "input.txt.part1: ABC\ninput.txt.part2: DEF\ninput.txt.part3: GH",
-    ["Use size/n and size%n for balanced part sizes.", "Close every stream with try-with-resources.", "Byte splitting may split a multibyte character; this fixture uses ASCII."]),
-  "java-lab-14": desktop(
-    "Read a file path and report existence, readability, writability, regular-file/directory type, and byte length. Test an eight-byte text file and a missing path in the college lab environment. Submit source and actual observations; permission flags depend on the operating system.",
+    ["Use size/n and size%n for balanced part sizes.", "Use java.io streams, not java.nio.file; close every stream with try-with-resources.", "Byte splitting may split a multibyte character; this fixture uses ASCII."]),
+  "java-lab-14": java(
+    "Create an eight-byte text file with java.io.FileOutputStream in your program. Read a file path and report existence, readability, writability, regular-file/directory type, and byte length using java.io.File. Test the created file and a missing path. The browser uses temporary virtual files; it cannot inspect files on your computer. Submit source and actual observations.",
     "For an accessible eight-byte regular file:\nexists=true\nreadable=true\nwritable=<actual permission>\ntype=file\nlength=8\nFor missing path: exists=false",
-    ["Check existence before reporting length.", "Use Files.isReadable / isWritable.", "Never assume permissions are identical across machines."]),
+    ["Check existence before reporting length.", "Use File.canRead() / canWrite().", "Browser permissions describe the virtual filesystem, not the host computer."]),
   "java-lab-15": desktop(
     "Using a faculty-provided JDBC driver and test database, create Student(id,name). Add (1,'Asha'), retrieve it, modify the name to 'Asha R', retrieve again, delete id 1 and report the remaining row count. Use PreparedStatement, try-with-resources and transaction rollback on error. Submit source and results; never include passwords in source.",
     "1 Asha\n1 Asha R\nRemaining rows: 0",

@@ -271,7 +271,7 @@ ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS contact_number TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS department TEXT CHECK (department IN ('CSE', 'CSM', 'CSD'));
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS section TEXT CHECK (section IN ('A', 'B', 'C', 'D', 'E'));
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS college TEXT NOT NULL DEFAULT 'KG Reddy College of Engineering and Technology';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS college TEXT NOT NULL DEFAULT 'AsterLab';
 CREATE INDEX IF NOT EXISTS users_cohort_idx ON public.users (role, department, section);
 CREATE UNIQUE INDEX IF NOT EXISTS users_student_roll_unique ON public.users (upper(roll_number)) WHERE role = 'student' AND roll_number IS NOT NULL;
 ALTER TABLE public.assignments ADD COLUMN IF NOT EXISTS hints JSONB NOT NULL DEFAULT '[]'::jsonb;
@@ -351,3 +351,10 @@ CREATE POLICY "Course cohorts are viewable by everyone" ON public.course_cohorts
 CREATE POLICY "Only faculty can insert cohorts" ON public.course_cohorts FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid()::text AND role IN ('faculty', 'admin'))
 );
+
+ALTER TABLE public.resources ADD COLUMN IF NOT EXISTS practice_questions JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.resources DROP CONSTRAINT IF EXISTS resources_practice_questions_array;
+ALTER TABLE public.resources ADD CONSTRAINT resources_practice_questions_array CHECK (jsonb_typeof(practice_questions) = 'array');
+ALTER TABLE public.assignments DROP CONSTRAINT IF EXISTS assignments_execution_environment_check;
+ALTER TABLE public.assignments ADD CONSTRAINT assignments_execution_environment_check CHECK (execution_environment IN ('runner', 'external', 'visual'));
+

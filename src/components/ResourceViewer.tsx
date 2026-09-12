@@ -1,3 +1,5 @@
+import { ResourcePractice } from "./ResourcePractice";
+import type { AuthSession } from "../platform/types";
 import {
   BookOpen,
   CalendarDays,
@@ -19,6 +21,8 @@ import type {
 } from "../platform/types";
 
 interface ResourceViewerProps {
+  session: AuthSession;
+  theme: "light" | "dark";
   user: SessionUser;
   resources: LearningResource[];
   courseFilter?: string;
@@ -136,6 +140,8 @@ function PdfPlayer({
 }
 
 export function ResourceViewer({
+  session,
+  theme,
   user,
   resources,
   courseFilter = "all",
@@ -144,7 +150,7 @@ export function ResourceViewer({
   const [selectedId, setSelectedId] = useState(resources[0]?.id || "");
   const availableCourseCodes = useMemo(
     () => Array.from(new Set(resources.map((r) => r.courseCode))),
-    [resources]
+    [resources],
   );
 
   const [activeCourseFilter, setActiveCourseFilter] = useState<
@@ -191,8 +197,12 @@ export function ResourceViewer({
           <div className="segmented-control mt-4 w-full">
             {[
               ["all", "All"] as const,
-              ...(availableCourseCodes.includes("JAVA") ? [["course-java", "JAVA"] as const] : []),
-              ...(availableCourseCodes.includes("DBMS") ? [["course-dbms", "DBMS"] as const] : []),
+              ...(availableCourseCodes.includes("JAVA")
+                ? [["course-java", "JAVA"] as const]
+                : []),
+              ...(availableCourseCodes.includes("DBMS")
+                ? [["course-dbms", "DBMS"] as const]
+                : []),
             ].map(([id, label]) => (
               <button
                 className={`flex-1 ${activeCourseFilter === id ? "active" : ""}`}
@@ -274,6 +284,13 @@ export function ResourceViewer({
             />
           )}
         </div>
+        <ResourcePractice
+          key={selected.id}
+          resource={selected}
+          session={session}
+          theme={theme}
+          onEvent={onEvent}
+        />
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <div className="panel p-4">
             <span className="text-xs text-[var(--muted)]">Curriculum</span>

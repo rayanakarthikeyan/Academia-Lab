@@ -71,7 +71,18 @@ export interface Enrollment {
   status: "active" | "completed";
 }
 
+export interface PracticeQuestion {
+  id: string;
+  title: string;
+  prompt: string;
+  language: "java" | "sql" | "visual";
+  starterCode: string;
+  input: string;
+  expectedOutput: string;
+}
+
 export interface LearningResource {
+  practiceQuestions?: PracticeQuestion[];
   id: string;
   courseId: string;
   title: string;
@@ -205,7 +216,7 @@ export interface AssignmentRecord {
   work_mode: WorkMode;
   questions: AssessmentQuestion[];
   hints: string[];
-  execution_environment: "runner" | "external";
+  execution_environment: "runner" | "external" | "visual";
   created_at?: string;
   subjects?: AssignmentSubject | null;
 }
@@ -217,7 +228,7 @@ export interface ActivityTemplate {
   hints: string[];
   starterCode: string;
   mode: WorkMode;
-  environment: "runner" | "external";
+  environment: "runner" | "external" | "visual";
   questions: AssessmentQuestion[];
 }
 

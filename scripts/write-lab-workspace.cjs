@@ -555,7 +555,7 @@ const L = [
 "      {/* Curriculum experiments */}",
 "      <div>",
 "        {filteredCustom.length > 0 && (",
-"          <p className=\"mb-3 text-xs font-bold uppercase tracking-[.14em]\" style={{ color: 'var(--muted)' }}>KGR25 Curriculum</p>",
+"          <p className=\"mb-3 text-xs font-bold uppercase tracking-[.14em]\" style={{ color: 'var(--muted)' }}>Academic Curriculum</p>",
 "        )}",
 "        <div className=\"grid gap-4 md:grid-cols-2 xl:grid-cols-3\">",
 "          {labExperiments.map((item) => renderCard(getDraft(item)))}",
