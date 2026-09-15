@@ -13,6 +13,14 @@ try {
     hasTouch: true,
   });
   const base = process.env.TEST_BASE_URL || "http://127.0.0.1:5173";
+  await page.goto(base);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.locator('input[type=password]').fill("example-test");
+    assert.ok((await page.locator('input[type=password]').boundingBox()).width > 100);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/**", (route) => {
     const url = new URL(route.request().url());
     return route.fulfill({
