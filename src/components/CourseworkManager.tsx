@@ -1,9 +1,16 @@
 import { VisualPreview } from "./VisualPreview";
 import { ActivityDeliveryStatus } from "./ActivityDeliveryStatus";
 import { sourceDigest, normalizeOutput } from "../platform/run-evidence";
+import { JavaFiles, JavaDownloads } from "./JavaFiles";
+import type { RuntimeFile } from "../platform/java-browser";
+import { postgresExamples } from "../platform/postgres-examples";
 import { syllabusSupport } from "../platform/syllabus-support";
 import Editor from "./CodeEditor";
-import { javaCompilerHelp, needsDesktopJava } from "../platform/java-support";
+import {
+  javaCompilerHelp,
+  needsDesktopJava,
+  jdbcStarter,
+} from "../platform/java-support";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -162,6 +169,19 @@ export function AssignmentWorkspace({
   const isMcq = mode === "mcq";
   const language = assignmentCourse(assignment) === "JAVA" ? "java" : "sql";
   const localKey = `coursework-${assignment.id}-${session.user.id}`;
+  const [sqlEngine, setSqlEngine] = useState<"sqlite" | "postgres">(() =>
+    readLocalDraft(`${localKey}-engine`) === "postgres" ? "postgres" : "sqlite",
+  );
+  const [files, setFiles] = useState<RuntimeFile[]>([]);
+  const [outputFiles, setOutputFiles] = useState<RuntimeFile[]>([]);
+  const runtimeContext = useMemo(
+    () =>
+      JSON.stringify({
+        engine: language === "sql" ? sqlEngine : "java8",
+        files,
+      }),
+    [language, sqlEngine, files],
+  );
   const savedAnswers = submission?.metadata?.answers;
   const [stdin, setStdin] = useState(
     () =>
@@ -172,17 +192,20 @@ export function AssignmentWorkspace({
   const [lastRun, setLastRun] = useState<{
     code: string;
     input: string;
+    context: string;
   } | null>(null);
   const [sampleChecks, setSampleChecks] = useState<{
     code: string;
     passed: number;
     total: number;
+    context: string;
   } | null>(null);
   const [hintsUsed, setHintsUsed] = useState<number[]>([]);
   const visual = assignment.execution_environment === "visual";
+  const [useBuiltInJdbc, setUseBuiltInJdbc] = useState(false);
   const external =
     !visual &&
-    (assignment.execution_environment === "external" ||
+    ((assignment.execution_environment === "external" && !useBuiltInJdbc) ||
       (language === "java" && needsDesktopJava(assignment.curriculum_item_id)));
   const [body, setBody] = useState(
     () =>
@@ -302,15 +325,21 @@ export function AssignmentWorkspace({
           work_mode: mode,
           answers: isMcq ? answers : undefined,
           language: isCoding ? (visual ? "html" : language) : null,
+          runtime: language === "sql" ? sqlEngine : "java8",
           validation_status:
-            isCoding && lastRun?.code === body && lastRun.input === stdin
+            isCoding &&
+            lastRun?.code === body &&
+            lastRun.input === stdin &&
+            lastRun.context === runtimeContext
               ? output.status
               : "not-run-current-code",
           logic_check:
-            sampleChecks?.code === body
+            sampleChecks?.code === body &&
+            sampleChecks.context === runtimeContext
               ? {
                   ...sampleChecks,
                   code: undefined,
+                  context: undefined,
                   evidenceSource: "student-client-sample-cases",
                 }
               : null,
@@ -361,15 +390,23 @@ export function AssignmentWorkspace({
           language,
           code: body,
           stdin,
+          sqlEngine,
         },
-        { signal: runController.current.signal, onProgress: setRunPhase },
+        {
+          signal: runController.current.signal,
+          onProgress: setRunPhase,
+          files,
+        },
       );
       setOutput(result);
-      setLastRun({ code: body, input: stdin });
+      setLastRun({ code: body, input: stdin, context: runtimeContext });
+      setOutputFiles(result.files || []);
       telemetry.recordRun({
         ...result,
         sourceDigest: await sourceDigest(body),
         inputDigest: await sourceDigest(stdin),
+        runtime: language === "sql" ? sqlEngine : "java8",
+        contextDigest: await sourceDigest(runtimeContext),
       });
     } catch (caught) {
       const result = {
@@ -400,8 +437,8 @@ export function AssignmentWorkspace({
         setRunPhase(`Checking sample ${index + 1} of ${cases.length}…`);
         const result = await runCode(
           session.token,
-          { language, code: body, stdin: test.input },
-          { signal: runController.current.signal },
+          { language, code: body, stdin: test.input, sqlEngine },
+          { signal: runController.current.signal, files },
         );
         if (runController.current.signal.aborted)
           throw new Error("Sample checks stopped");
@@ -411,13 +448,20 @@ export function AssignmentWorkspace({
         )
           passed++;
       }
-      setSampleChecks({ code: body, passed, total: cases.length });
+      setSampleChecks({
+        code: body,
+        passed,
+        total: cases.length,
+        context: runtimeContext,
+      });
       onEvent({
         userId: session.user.id,
         assignmentId: assignment.id,
         kind: "code_run",
         metadata: {
           runType: "sample-check",
+          runtime: language === "sql" ? sqlEngine : "java8",
+          contextDigest: await sourceDigest(runtimeContext),
           samplePassed: passed,
           sampleTotal: cases.length,
           sourceDigest: await sourceDigest(body),
@@ -519,7 +563,9 @@ export function AssignmentWorkspace({
           </span>
         )}
         <span className="text-xs text-[var(--muted)]">
-          {practiceOnly ? "Ungraded practice" : `Due ${dueLabel(assignment.due_date)}`}
+          {practiceOnly
+            ? "Ungraded practice"
+            : `Due ${dueLabel(assignment.due_date)}`}
         </span>
       </header>
       {(error || proctor.warning) && (
@@ -570,6 +616,30 @@ export function AssignmentWorkspace({
             <p className="mt-4 text-xs text-amber-600">
               External lab environment / faculty-reviewed results
             </p>
+          )}
+          {assignment.curriculum_item_id === "java-lab-15" && !visual && (
+            <div className="mt-4 text-xs space-y-2">
+              {external && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setUseBuiltInJdbc(true)}
+                >
+                  Use built-in H2 JDBC
+                </button>
+              )}
+              <details>
+                <summary>H2 JDBC reference program</summary>
+                <p className="my-2">
+                  Supply a student name in Your input. This uses real JDBC with
+                  a temporary H2 database; change your driver and connection URL
+                  when adapting code written for another database.
+                </p>
+                <pre className="whitespace-pre-wrap break-words">
+                  {jdbcStarter}
+                </pre>
+              </details>
+            </div>
           )}
           {isCoding && language === "java" && !external && !visual && (
             <p className="mt-4 text-xs text-[var(--muted)]">
@@ -715,6 +785,59 @@ export function AssignmentWorkspace({
               value={body}
             />
           )}
+          {isCoding && !external && !visual && language === "sql" && (
+            <div className="border-t border-[var(--line)] p-4 text-xs space-y-2">
+              <label>
+                SQL engine
+                <select
+                  aria-label="SQL engine"
+                  className="input-field mt-2"
+                  value={sqlEngine}
+                  disabled={locked || running}
+                  onChange={(event) => {
+                    const engine = event.target.value as "sqlite" | "postgres";
+                    setSqlEngine(engine);
+                    try {
+                      localStorage.setItem(`${localKey}-engine`, engine);
+                    } catch {
+                      /* Run remains available without local storage. */
+                    }
+                  }}
+                >
+                  <option value="sqlite">SQLite — basic SQL</option>
+                  <option value="postgres">
+                    PostgreSQL — procedures, cursors, ANY/ALL
+                  </option>
+                </select>
+              </label>
+              <p>
+                Each run starts with an empty database. Include setup and data
+                in your script. PostgreSQL uses PL/pgSQL, not Oracle PL/SQL;
+                code is executed without translation.
+              </p>
+              {sqlEngine === "postgres" && (
+                <details>
+                  <summary>PostgreSQL reference programs</summary>
+                  {Object.entries(postgresExamples).map(([name, code]) => (
+                    <details key={name} className="mt-2">
+                      <summary>{name}</summary>
+                      <pre className="whitespace-pre-wrap break-words p-2">
+                        {code}
+                      </pre>
+                    </details>
+                  ))}
+                </details>
+              )}
+            </div>
+          )}
+          {isCoding && !external && !visual && language === "java" && (
+            <JavaFiles
+              files={files}
+              onChange={setFiles}
+              disabled={locked || running}
+              onError={setError}
+            />
+          )}
           {isCoding && !external && !visual && language === "java" && (
             <label className="block border-t border-[var(--line)] p-4 text-xs">
               Your input (stdin)
@@ -801,10 +924,12 @@ export function AssignmentWorkspace({
                 examples; they do not prove the entire solution is correct.
               </p>
               {lastRun &&
-                (lastRun.code !== body || lastRun.input !== stdin) && (
+                (lastRun.code !== body ||
+                  lastRun.input !== stdin ||
+                  lastRun.context !== runtimeContext) && (
                   <p className="text-xs text-amber-600">
-                    Code or input changed after the last run. Run again for
-                    current output.
+                    Code, input, files or engine changed after the last run. Run
+                    again for current output.
                   </p>
                 )}
               {!external && !visual && (
@@ -824,7 +949,8 @@ export function AssignmentWorkspace({
               )}
               {sampleChecks && (
                 <p role="status" className="text-xs">
-                  {sampleChecks.code === body
+                  {sampleChecks.code === body &&
+                  sampleChecks.context === runtimeContext
                     ? `${sampleChecks.passed}/${sampleChecks.total} sample cases matched.`
                     : "Code changed; check the samples again."}{" "}
                   Faculty reviews the solution logic.
@@ -832,6 +958,7 @@ export function AssignmentWorkspace({
               )}
             </div>
             {visual && <VisualPreview code={body} />}
+            {language === "java" && <JavaDownloads files={outputFiles} />}
             {isCoding && (
               <div className="border-t border-[var(--line)]">
                 <div className="flex h-10 items-center border-b border-[var(--line)] px-3">

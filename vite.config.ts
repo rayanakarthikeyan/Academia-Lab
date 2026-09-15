@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
   );
   return {
     base: "/",
+    optimizeDeps: { exclude: ["@electric-sql/pglite"] },
+    worker: { format: "es" },
     plugins: [
       react(),
       tailwindcss(),

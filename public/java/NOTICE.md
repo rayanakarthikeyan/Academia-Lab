@@ -6,6 +6,10 @@ Hosting bandwidth and browser CPU/memory remain finite.
 
 ## Components and source
 
+- **H2 Database 2.2.224** — unmodified Java archive, dual licensed MPL 2.0 / EPL 1.0.
+  See `licenses/H2-LICENSE.txt`. [Release source](https://github.com/h2database/h2database/tree/version-2.2.224).
+  This is an embedded in-memory JDBC database inside the isolated browser JVM, not a server.
+
 - **DoppioJVM and native adapters** — MIT. Copyright John Vilk, CJ Carey,
   Jez Ng, Jonny Leahey and contributors. [Source](https://github.com/plasma-umass/doppio).
   See `licenses/Doppio-MIT.txt`.

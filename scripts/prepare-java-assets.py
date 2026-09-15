@@ -54,3 +54,9 @@ with zipfile.ZipFile(io.BytesIO(download("doppio_home.zip"))) as src:
             dst.writestr(info.filename, data)
     (target / "java8-runtime.zip").write_bytes(result.getvalue())
 print("Browser Java binaries verified and rebuilt. Keep public/java/licenses in deployments.")
+
+with urllib.request.urlopen(manifest["jdbc"]["url"], timeout=120) as response:
+    jdbc = response.read()
+if hashlib.sha256(jdbc).hexdigest() != manifest["jdbc"]["sha256"]:
+    raise RuntimeError("H2 JDBC checksum mismatch")
+(target / "h2.jar").write_bytes(jdbc)

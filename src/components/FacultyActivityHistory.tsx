@@ -99,6 +99,14 @@ export function FacultyActivityHistory({
             {typeof event.metadata.changes === "number" && (
               <p>Edits in this batch: {event.metadata.changes}</p>
             )}
+            {typeof event.metadata.runtime === "string" && (
+              <p>Runtime: {event.metadata.runtime}</p>
+            )}
+            {typeof event.metadata.contextDigest === "string" && (
+              <p className="mt-2 break-all">
+                Runtime and files fingerprint: {event.metadata.contextDigest}
+              </p>
+            )}
             {typeof event.metadata.error === "string" &&
               event.metadata.error && (
                 <pre className="mt-2 whitespace-pre-wrap break-words">

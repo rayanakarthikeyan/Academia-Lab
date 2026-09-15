@@ -134,6 +134,8 @@ export function useEditorTelemetry({
       durationMs: number;
       sourceDigest?: string;
       inputDigest?: string;
+      runtime?: string;
+      contextDigest?: string;
     }) => {
       flushEdits();
       const error =
@@ -149,6 +151,8 @@ export function useEditorTelemetry({
         error,
         sourceDigest: result.sourceDigest,
         inputDigest: result.inputDigest,
+        runtime: result.runtime,
+        contextDigest: result.contextDigest,
         logicCheck: "not-checked",
       });
       if (error) {

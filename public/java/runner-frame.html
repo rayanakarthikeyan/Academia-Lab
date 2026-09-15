@@ -21,7 +21,7 @@
     }
     if (event.data?.type !== "run" || worker) return;
     try {
-      const { assets, code, stdin } = event.data;
+      const { assets, code, stdin, files } = event.data;
       const blobUrl = (text) => {
         const url = URL.createObjectURL(
           new Blob([text], { type: "text/javascript" }),
@@ -52,8 +52,15 @@
         cleanup();
       };
       worker.postMessage(
-        { code, stdin, runtime: assets.runtime, compiler: assets.compiler },
-        [assets.runtime, assets.compiler],
+        {
+          code,
+          stdin,
+          files,
+          runtime: assets.runtime,
+          compiler: assets.compiler,
+          jdbc: assets.jdbc,
+        },
+        [assets.runtime, assets.compiler, assets.jdbc],
       );
     } catch (error) {
       parent.postMessage({ type: "kgr-java", error: String(error) }, "*");

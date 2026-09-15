@@ -9,6 +9,9 @@
     "test:features": "node scripts/features-browser.test.mjs",
     "test:ide": "node scripts/ide-telemetry.test.mjs",
     "test:proctor": "node scripts/proctor-browser.test.mjs",
+    "test:runtimes": "node scripts/runtime-extensions.test.mjs",
+    "test:runtime-ui": "node scripts/runtime-ui.test.mjs",
+    "test:runtime-production": "node scripts/postgres-production.test.mjs",
     "api:local": "node server/local-api.mjs",
     "dev": "node server/dev.mjs",
     "dev:vercel": "vercel dev",
@@ -22,6 +25,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@google/generative-ai": "^0.24.1",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.109.0",

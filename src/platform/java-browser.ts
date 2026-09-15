@@ -3,9 +3,16 @@ export interface JavaRunResult {
   stdout: string;
   stderr: string;
   durationMs: number;
+  files?: RuntimeFile[];
+}
+
+export interface RuntimeFile {
+  name: string;
+  base64: string;
 }
 
 export interface RunOptions {
+  files?: RuntimeFile[];
   signal?: AbortSignal;
   onProgress?: (phase: string) => void;
 }
@@ -18,6 +25,7 @@ let assetsPromise:
       worker: string;
       runtime: ArrayBuffer;
       compiler: ArrayBuffer;
+      jdbc: ArrayBuffer;
     }>
   | undefined;
 
@@ -40,13 +48,15 @@ function getAssets() {
       fetchAsset("runner-worker.js").then((r) => r.text()),
       fetchAsset("java8-runtime.zip").then((r) => r.arrayBuffer()),
       fetchAsset("ecj.jar").then((r) => r.arrayBuffer()),
+      fetchAsset("h2.jar").then((r) => r.arrayBuffer()),
     ])
-      .then(([browserfs, doppio, worker, runtime, compiler]) => ({
+      .then(([browserfs, doppio, worker, runtime, compiler, jdbc]) => ({
         browserfs,
         doppio,
         worker,
         runtime,
         compiler,
+        jdbc,
       }))
       .catch((error) => {
         assetsPromise = undefined;
@@ -120,6 +130,7 @@ export function runJavaInBrowser(
           stdout: String(result.stdout || "").slice(0, 100000),
           stderr: String(result.stderr || "").slice(0, 100000),
           durationMs: Math.round(performance.now() - start),
+          files: Array.isArray(result.files) ? result.files : [],
         });
       }
     };
@@ -137,7 +148,7 @@ export function runJavaInBrowser(
       return;
     }
     options.onProgress?.(
-      "Loading Java compiler (first download is about 35 MB)…",
+      "Loading Java compiler (first download is about 38 MB)…",
     );
     void getAssets()
       .then((assets) => {
@@ -162,11 +173,18 @@ export function runJavaInBrowser(
             ...assets,
             runtime: assets.runtime.slice(0),
             compiler: assets.compiler.slice(0),
+            jdbc: assets.jdbc.slice(0),
           };
           frame?.contentWindow?.postMessage(
-            { type: "run", code, stdin, assets: copy },
+            {
+              type: "run",
+              code,
+              stdin,
+              files: options.files || [],
+              assets: copy,
+            },
             "*",
-            [copy.runtime, copy.compiler],
+            [copy.runtime, copy.compiler, copy.jdbc],
           );
         };
         window.addEventListener("message", receive);

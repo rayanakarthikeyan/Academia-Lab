@@ -3,6 +3,7 @@ self.onmessage = async ({ data }) => {
   const started = performance.now();
   let stdout = "",
     stderr = "";
+  let outputFiles = [];
   const result = (status, extra = "") =>
     self.postMessage({
       result: {
@@ -10,6 +11,7 @@ self.onmessage = async ({ data }) => {
         stdout,
         stderr: stderr + extra,
         durationMs: Math.round(performance.now() - started),
+        files: outputFiles,
       },
     });
   try {
@@ -24,6 +26,27 @@ self.onmessage = async ({ data }) => {
     mounts.mount("/tmp", new BrowserFS.FileSystem.InMemory());
     const fs = BrowserFS.BFSRequire("fs");
     const process = BrowserFS.BFSRequire("process");
+    const files = data.files || [];
+    if (!Array.isArray(files) || files.length > 10)
+      throw new Error("Upload at most 10 files.");
+    let inputBytes = 0;
+    const names = new Set();
+    for (const file of files) {
+      if (
+        !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,79}$/.test(file.name) ||
+        /\.(java|class)$/i.test(file.name) ||
+        names.has(file.name)
+      )
+        throw new Error(
+          "Use unique data filenames without folders or Java source extensions.",
+        );
+      names.add(file.name);
+      const bytes = new Buffer(file.base64, "base64");
+      inputBytes += bytes.length;
+      if (inputBytes > 1048576)
+        throw new Error("Uploaded files must total 1 MB or less.");
+      fs.writeFileSync("/work/" + file.name, bytes);
+    }
     process.chdir("/work");
     process.initializeTTYs();
     const capture = (stream, bytes) => {
@@ -42,11 +65,37 @@ self.onmessage = async ({ data }) => {
     process.stdout.on("data", (bytes) => capture("out", bytes));
     process.stderr.on("data", (bytes) => capture("err", bytes));
     fs.writeFileSync("/tmp/ecj.jar", new Buffer(data.compiler));
-    fs.writeFileSync("/work/Main.java", data.code);
+    fs.writeFileSync("/tmp/h2.jar", new Buffer(data.jdbc));
+    // Ignore comments and literals when locating a conventional entry class.
+    const sourceHeader = data.code.replace(
+      /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
+      " ",
+    );
+    const identifier = "[A-Za-z_$][A-Za-z0-9_$]*";
+    const publicClass = sourceHeader.match(
+      new RegExp(
+        "\\bpublic\\s+(?:(?:final|abstract|strictfp)\\s+)*class\\s+(" +
+          identifier +
+          ")",
+      ),
+    );
+    const firstClass = sourceHeader.match(
+      new RegExp("\\bclass\\s+(" + identifier + ")"),
+    );
+    const entryClass = publicClass?.[1] || firstClass?.[1] || "Main";
+    const packageName = sourceHeader.match(
+      new RegExp(
+        "\\bpackage\\s+(" + identifier + "(?:\\." + identifier + ")*)\\s*;",
+      ),
+    )?.[1];
+    const mainClass = packageName ? packageName + "." + entryClass : entryClass;
+    fs.writeFileSync("/work/" + entryClass + ".java", data.code);
     // Bootstrap gives System.in a finite UTF-8 stream, including a real EOF.
     fs.writeFileSync(
-      "/work/KgrLabLauncher.java",
-      'public class KgrLabLauncher { public static void main(String[] args) { Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() { public void uncaughtException(Thread thread, Throwable error) { error.printStackTrace(); System.exit(1); } }); try { System.setIn(new java.io.FileInputStream("/tmp/stdin.txt")); Main.main(args); } catch (Throwable error) { error.printStackTrace(); System.exit(1); } } }',
+      "/work/AsterLabLauncher.java",
+      'public class AsterLabLauncher { public static void main(String[] args) { Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() { public void uncaughtException(Thread thread, Throwable error) { error.printStackTrace(); System.exit(1); } }); try { System.setIn(new java.io.FileInputStream("/tmp/stdin.txt")); java.lang.reflect.Method main = Class.forName("' +
+        mainClass +
+        '").getMethod("main", String[].class); main.setAccessible(true); main.invoke(null, (Object) args); } catch (Throwable error) { error.printStackTrace(); System.exit(1); } } }',
     );
     fs.writeFileSync("/tmp/stdin.txt", data.stdin);
     const run = (args) =>
@@ -70,10 +119,12 @@ self.onmessage = async ({ data }) => {
       "UTF-8",
       "-proc:none",
       "-warn:none",
+      "-classpath",
+      "/work:/tmp/h2.jar",
       "-d",
       "/work",
-      "/work/Main.java",
-      "/work/KgrLabLauncher.java",
+      "/work/" + entryClass + ".java",
+      "/work/AsterLabLauncher.java",
     ]);
     if (compiled !== 0) {
       result("error");
@@ -83,9 +134,25 @@ self.onmessage = async ({ data }) => {
     const exit = await run([
       "-Djava.awt.headless=true",
       "-cp",
-      "/work",
-      "KgrLabLauncher",
+      "/work:/tmp/h2.jar",
+      "AsterLabLauncher",
     ]);
+    let outputBytes = 0;
+    for (const name of fs.readdirSync("/work")) {
+      const path = "/work/" + name;
+      if (/\.(java|class)$/i.test(name) || !fs.statSync(path).isFile())
+        continue;
+      const size = fs.statSync(path).size;
+      if (outputFiles.length >= 20 || outputBytes + size > 2097152) {
+        stderr += "\nFile downloads limited to 20 files / 2 MB.";
+        break;
+      }
+      outputBytes += size;
+      outputFiles.push({
+        name,
+        base64: fs.readFileSync(path).toString("base64"),
+      });
+    }
     result(exit === 0 ? "passed" : "error");
   } catch (error) {
     result(

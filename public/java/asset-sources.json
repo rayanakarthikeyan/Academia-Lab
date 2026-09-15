@@ -1,6 +1,11 @@
 {
   "repository": "https://github.com/plasma-umass/doppio-demo",
   "revision": "898e6e5f59f2b30346831f6a735a4d7b1e08ef06",
+  "jdbc": {
+    "url": "https://repo.maven.apache.org/maven2/com/h2database/h2/2.2.224/h2-2.2.224.jar",
+    "sha256": "b9d8f19358ada82a4f6eb5b174c6cfe320a375b5a9cb5a4fe456d623e6e55497",
+    "source": "https://github.com/h2database/h2database/tree/version-2.2.224"
+  },
   "sha256": {
     "js/browserfs.min.js": "a6367d60908abdb4c071fa5b10b0b1c0e1ee187659ab8dcbb7c6d7d9de21af03",
     "js/doppio.js": "cd7042c12608ab0f2765c21d8e74bc1bc1ea71b43361d2cfdfe84dbda69b1ea4",

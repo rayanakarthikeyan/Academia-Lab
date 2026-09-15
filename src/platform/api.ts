@@ -1,5 +1,9 @@
 import { enqueueActivity } from "./activity-delivery";
-import { runJavaInBrowser, type RunOptions } from "./java-browser";
+import {
+  runJavaInBrowser,
+  type RunOptions,
+  type JavaRunResult,
+} from "./java-browser";
 import type {
   ActivityLog,
   ActivityTemplate,
@@ -346,19 +350,32 @@ export async function submitAssessment(
 
 export async function runCode(
   _token: string,
-  input: { language: "java" | "sql"; code: string; stdin: string },
+  input: {
+    language: "java" | "sql";
+    code: string;
+    stdin: string;
+    sqlEngine?: "sqlite" | "postgres";
+  },
   options: RunOptions = {},
 ) {
   if (input.language === "sql") {
-    return new Promise<{
-      status: "passed" | "error";
-      stdout: string;
-      stderr: string;
-      durationMs: number;
-    }>((resolve) => {
-      const worker = new Worker(new URL("./sql.worker.ts", import.meta.url), {
-        type: "module",
-      });
+    if (!input.code.trim() || input.code.length > 100000)
+      return {
+        status: "error" as const,
+        stdout: "",
+        stderr: "Enter SQL source (up to 100 KB).",
+        durationMs: 0,
+      };
+    return new Promise<JavaRunResult>((resolve) => {
+      const started = performance.now();
+      const postgres = input.sqlEngine === "postgres";
+      const worker = postgres
+        ? new Worker(new URL("./postgres.worker.ts", import.meta.url), {
+            type: "module",
+          })
+        : new Worker(new URL("./sql.worker.ts", import.meta.url), {
+            type: "module",
+          });
       let finished = false;
       const finish = (result: {
         status: "passed" | "error";
@@ -371,7 +388,7 @@ export async function runCode(
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", abort);
         worker.terminate();
-        resolve(result);
+        resolve({ ...result, durationMs: Math.round(performance.now() - started) });
       };
       const abort = () =>
         finish({
@@ -380,18 +397,37 @@ export async function runCode(
           stderr: "Execution stopped.",
           durationMs: 0,
         });
-      const timer = setTimeout(
+      let timer = setTimeout(
         () =>
           finish({
             status: "error",
             stdout: "",
             stderr:
-              "SQL execution exceeded 10 seconds. Simplify your query and run again.",
+              "SQL engine startup or execution timed out. Try again or simplify your query.",
             durationMs: 10000,
           }),
-        10000,
+        postgres ? 60000 : 10000,
       );
-      worker.onmessage = (event) => finish(event.data);
+      worker.onmessage = (event) => {
+        if (event.data.phase) {
+          options.onProgress?.(event.data.phase);
+          if (event.data.phase === "Running SQL…") {
+            clearTimeout(timer);
+            timer = setTimeout(
+              () =>
+                finish({
+                  status: "error",
+                  stdout: "",
+                  stderr: "SQL execution exceeded 10 seconds.",
+                  durationMs: 10000,
+                }),
+              10000,
+            );
+          }
+          return;
+        }
+        finish(event.data);
+      };
       worker.onerror = () =>
         finish({
           status: "error",
