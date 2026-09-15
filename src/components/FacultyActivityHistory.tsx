@@ -75,8 +75,12 @@ export function FacultyActivityHistory({
             className="border-b border-[var(--line)] py-3 text-xs"
           >
             <summary className="cursor-pointer">
-              <strong>{event.kind.replaceAll("_", " ")}</strong> ·{" "}
-              {new Date(event.occurred_at).toLocaleString()}
+              <strong>
+                {event.metadata.runType === "learning-interaction"
+                  ? "Learning activity"
+                  : event.kind.replaceAll("_", " ")}
+              </strong>{" "}
+              · {new Date(event.occurred_at).toLocaleString()}
               <span className="block text-[var(--muted)]">
                 {assignments.find((a) => a.id === event.assignment_id)?.title ||
                   (event.resource_id
@@ -84,7 +88,53 @@ export function FacultyActivityHistory({
                     : "Learning activity")}
               </span>
             </summary>
-            {event.metadata.runType === "sample-check" ? (
+            {event.metadata.isTester === true && (
+              <p className="mt-2 font-semibold text-amber-600">
+                Tester activity
+              </p>
+            )}
+            {event.metadata.runType === "learning-interaction" && (
+              <div className="mt-2 space-y-1">
+                <p>
+                  Lab:{" "}
+                  {String(event.metadata.curriculumItemId || "Learning studio")}
+                </p>
+                <p>Action: {String(event.metadata.action || "Interaction")}</p>
+                {typeof event.metadata.matched === "boolean" && (
+                  <p>
+                    Prediction:{" "}
+                    {event.metadata.matched ? "matched" : "needs review"}
+                  </p>
+                )}
+                {typeof event.metadata.reflection === "string" && (
+                  <p className="whitespace-pre-wrap break-words">
+                    Reflection: {event.metadata.reflection}
+                  </p>
+                )}
+                {typeof event.metadata.missionComplete === "boolean" && (
+                  <p>
+                    Design mission:{" "}
+                    {event.metadata.missionComplete
+                      ? "completed"
+                      : "in progress"}
+                  </p>
+                )}
+                {Array.isArray(event.metadata.entities) && (
+                  <pre className="whitespace-pre-wrap break-words max-h-48 overflow-auto">
+                    {JSON.stringify(
+                      {
+                        entities: event.metadata.entities,
+                        relations: event.metadata.relations,
+                      },
+                      null,
+                      2,
+                    )}
+                  </pre>
+                )}
+              </div>
+            )}
+            {event.metadata.runType === "learning-interaction" ? null : event
+                .metadata.runType === "sample-check" ? (
               <p className="mt-2">
                 Sample cases matched: {String(event.metadata.samplePassed)} /{" "}
                 {String(event.metadata.sampleTotal)}
@@ -98,6 +148,28 @@ export function FacultyActivityHistory({
             ) : null}
             {typeof event.metadata.changes === "number" && (
               <p>Edits in this batch: {event.metadata.changes}</p>
+            )}
+            {event.metadata.runType === "learning-interaction" && (
+              <dl className="mt-2 grid grid-cols-2 gap-1">
+                {[
+                  "stage",
+                  "candidate",
+                  "divisor",
+                  "prime",
+                  "snapshots",
+                  "rowCount",
+                  "normalized",
+                  "status",
+                  "durationMs",
+                ]
+                  .filter((key) => event.metadata[key] !== undefined)
+                  .map((key) => (
+                    <div key={key}>
+                      <dt className="text-[var(--muted)]">{key}</dt>
+                      <dd>{String(event.metadata[key])}</dd>
+                    </div>
+                  ))}
+              </dl>
             )}
             {typeof event.metadata.runtime === "string" && (
               <p>Runtime: {event.metadata.runtime}</p>

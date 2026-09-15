@@ -25,6 +25,7 @@ function mapUser(user: Record<string, unknown>): SessionUser {
     name: String(user.name),
     email: String(user.email),
     role: user.role as SessionUser["role"],
+    isTester: user.isTester === true || user.title === "Platform tester",
     title: user.title ? String(user.title) : undefined,
     rollNumber: user.roll_number ? String(user.roll_number) : undefined,
     batch: user.batch ? String(user.batch) : undefined,
@@ -388,7 +389,10 @@ export async function runCode(
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", abort);
         worker.terminate();
-        resolve({ ...result, durationMs: Math.round(performance.now() - started) });
+        resolve({
+          ...result,
+          durationMs: Math.round(performance.now() - started),
+        });
       };
       const abort = () =>
         finish({

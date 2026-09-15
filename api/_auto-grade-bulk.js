@@ -11,17 +11,15 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createSupabaseClient();
-    const user = await requireUser(supabase, req);
+    const user = await requireUser(supabase, req, ["faculty", "admin"]);
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return res
-        .status(503)
-        .json({
-          error: "AI services are not configured. Please add GEMINI_API_KEY.",
-        });
+      return res.status(503).json({
+        error: "AI services are not configured. Please add GEMINI_API_KEY.",
+      });
     }
 
     // 1. Fetch all ungraded submissions (status = 'submitted')
@@ -55,6 +53,7 @@ export default async function handler(req, res) {
 
     // 2. Iterate and evaluate each submission
     for (const submission of pendingSubmissions) {
+      if (submission.metadata?.isTester === true) continue;
       const assignment = submission.assignments;
       if (!assignment) continue;
 
@@ -127,14 +126,19 @@ Respond with ONLY a valid JSON object matching this schema:
       }
     }
 
-    return res
-      .status(200)
-      .json({
-        gradedCount,
-        message: `Successfully graded ${gradedCount} submissions.`,
-      });
+    return res.status(200).json({
+      gradedCount,
+      message: `Successfully graded ${gradedCount} submissions.`,
+    });
   } catch (err) {
     console.error("Bulk auto-grade error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return res
+      .status(err.status || err.statusCode || 500)
+      .json({
+        error:
+          err.status === 403 || err.statusCode === 403
+            ? "Faculty access required"
+            : "Internal server error",
+      });
   }
 }

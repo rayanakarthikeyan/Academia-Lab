@@ -20,6 +20,7 @@ export type ActivityKind =
   | "code_submit";
 
 export interface SessionUser {
+  isTester?: boolean;
   id: string;
   name: string;
   email: string;

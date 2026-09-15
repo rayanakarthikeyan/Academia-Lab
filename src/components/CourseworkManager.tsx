@@ -1,4 +1,5 @@
 import { VisualPreview } from "./VisualPreview";
+import { LearningTools, hasLearningTool } from "./labs/LearningTools";
 import { ActivityDeliveryStatus } from "./ActivityDeliveryStatus";
 import { sourceDigest, normalizeOutput } from "../platform/run-evidence";
 import { JavaFiles, JavaDownloads } from "./JavaFiles";
@@ -574,6 +575,33 @@ export function AssignmentWorkspace({
           {error || proctor.warning}
         </div>
       )}
+      {type !== "assessment" &&
+        hasLearningTool(assignment.curriculum_item_id) && (
+          <details className="panel p-4">
+            <summary className="font-semibold cursor-pointer">
+              Open interactive learning activity
+            </summary>
+            <div className="mt-4">
+              <LearningTools
+                id={assignment.curriculum_item_id}
+                theme={theme}
+                onEvent={(action, evidence = {}) =>
+                  onEvent({
+                    userId: session.user.id,
+                    assignmentId: assignment.id,
+                    kind: "code_run",
+                    metadata: {
+                      ...evidence,
+                      runType: "learning-interaction",
+                      action,
+                      curriculumItemId: assignment.curriculum_item_id,
+                    },
+                  })
+                }
+              />
+            </div>
+          </details>
+        )}
       {notice && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-600">
           <CheckCircle2 size={17} />

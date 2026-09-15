@@ -1,5 +1,6 @@
-import { APP_NAME } from '../platform/branding';
+import { APP_NAME } from "../platform/branding";
 import { FacultyActivityHistory } from "./FacultyActivityHistory";
+import { TesterActivity } from "./TesterActivity";
 import {
   ArrowLeft,
   ArrowRight,
@@ -75,8 +76,11 @@ export function FacultyAnalytics({
         if (!active) return;
         setStudents(data.students);
         setAssignments(data.assignments);
-        setSubmissions(data.submissions);
-        setActivities(activity);
+        const studentIds = new Set(data.students.map((student) => student.id));
+        setSubmissions(
+          data.submissions.filter((row) => studentIds.has(row.author_id)),
+        );
+        setActivities(activity.filter((row) => studentIds.has(row.user_id)));
         if (!selectedId && data.students.length > 0)
           setSelectedId(data.students[0].id);
       })
@@ -127,8 +131,10 @@ export function FacultyAnalytics({
     const byAssignment = new Map(assignments.map((item) => [item.id, item]));
     return new Map(
       students.map((student) => {
-        const work = assignments.filter((item) =>
-          item.assigned_user_ids.includes(student.id),
+        const work = assignments.filter(
+          (item) =>
+            !item.assigned_user_ids?.length ||
+            item.assigned_user_ids.includes(student.id),
         );
         const history = records.get(student.id) || [];
         const events = logs.get(student.id) || [];
@@ -304,6 +310,7 @@ export function FacultyAnalytics({
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
+      <TesterActivity token={session.token} assignments={assignments} />
       <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--line)] pb-5">
         <div>
           <p className="text-xs text-[var(--muted)]">{APP_NAME}</p>
@@ -375,7 +382,6 @@ export function FacultyAnalytics({
       </section>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
         <section className="min-w-0">
-          
           <div className="grid gap-4 md:hidden">
             {pageStudents.map((student) => {
               const row = summaries.get(student.id)!;
@@ -393,20 +399,34 @@ export function FacultyAnalytics({
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-[var(--ink)] truncate">{student.name}</div>
-                      <div className="text-xs text-[var(--muted)] truncate">{student.rollNumber || student.email}</div>
+                      <div className="font-medium text-[var(--ink)] truncate">
+                        {student.name}
+                      </div>
+                      <div className="text-xs text-[var(--muted)] truncate">
+                        {student.rollNumber || student.email}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
-                       <div className="text-lg font-bold text-cyan-600">{row.score == null ? "-" : row.score + "%"}</div>
-                       <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Average</div>
+                      <div className="text-lg font-bold text-cyan-600">
+                        {row.score == null ? "-" : row.score + "%"}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                        Average
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs border-t border-[var(--line)] pt-3 mt-1">
                     <div className="text-[var(--muted)]">
-                      Dept/Sec: <strong className="text-[var(--ink)] font-medium">{student.department || "-"} / {student.section || "-"}</strong>
+                      Dept/Sec:{" "}
+                      <strong className="text-[var(--ink)] font-medium">
+                        {student.department || "-"} / {student.section || "-"}
+                      </strong>
                     </div>
                     <div className="text-[var(--muted)]">
-                      Submitted: <strong className="text-[var(--ink)] font-medium">{row.final.length} / {row.work.length}</strong>
+                      Submitted:{" "}
+                      <strong className="text-[var(--ink)] font-medium">
+                        {row.final.length} / {row.work.length}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -466,7 +486,7 @@ export function FacultyAnalytics({
               </tbody>
             </table>
           </div>
-          
+
           <footer className="mt-4 flex items-center justify-between text-xs text-[var(--muted)]">
             <span>
               {filtered.length} students / Page {currentPage + 1} of {pageCount}
@@ -538,7 +558,11 @@ export function FacultyAnalytics({
                   </div>
                 ))}
               </dl>
-              <FacultyActivityHistory token={session.token} userId={selected.id} assignments={assignments} />
+              <FacultyActivityHistory
+                token={session.token}
+                userId={selected.id}
+                assignments={assignments}
+              />
               <h4 className="mt-6 text-sm font-semibold">
                 Submitted work and drafts
               </h4>

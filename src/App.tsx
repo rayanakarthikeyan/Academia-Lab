@@ -1,4 +1,4 @@
-import { APP_NAME } from './platform/branding';
+import { APP_NAME } from "./platform/branding";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthScreen } from "./components/AuthScreen";
+import { LearningStudio } from "./components/LearningStudio";
 import { CourseworkManager } from "./components/CourseworkManager";
 import { FacultyAnalytics } from "./components/FacultyAnalytics";
 import { FacultyLabWorkspace } from "./components/FacultyLabWorkspace";
@@ -53,6 +54,7 @@ import type {
 } from "./platform/types";
 
 type ViewId =
+  | "learning-studio"
   | "dashboard"
   | "admin-dashboard"
   | "java-learn"
@@ -74,6 +76,7 @@ type NavItem =
 // studentNavigation is built dynamically in App based on visible courses
 
 const facultyNavigation: NavItem[] = [
+  { id: "learning-studio", label: "Learning studio", icon: FlaskConical },
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { isHeader: true, label: "Course Management" },
   { id: "enrollment", label: "Enrollment management", icon: Users },
@@ -91,6 +94,10 @@ const adminNavigation: NavItem[] = [
 
 function pageTitle(view: ViewId) {
   const titles: Record<ViewId, [string, string]> = {
+    "learning-studio": [
+      "Learning studio",
+      "Explore, predict, run and explain syllabus experiments.",
+    ],
     dashboard: [
       "Learning command center",
       "Courses, progress, and next actions in one focused workspace.",
@@ -239,7 +246,7 @@ export default function App() {
           setDashboardSubmissions(data.submissions);
         })
         .catch(() => undefined);
-      
+
       void loadPublishedCohorts(session.token)
         .then((data) => {
           if (!active) return;
@@ -259,7 +266,9 @@ export default function App() {
     setLearningResources([]);
     setDashboardAssignments([]);
     setDashboardSubmissions([]);
-    setView(nextSession.user.role === "admin" ? "admin-dashboard" : "dashboard");
+    setView(
+      nextSession.user.role === "admin" ? "admin-dashboard" : "dashboard",
+    );
   };
 
   const logout = () => {
@@ -277,9 +286,9 @@ export default function App() {
   );
 
   const isStudent = session?.user.role === "student";
-  
+
   const visibleCourses = useMemo(() => {
-    if (!session || !isStudent) return courses;
+    if (!session || !isStudent || session.user.isTester) return courses;
     return courses.filter((course) =>
       publishedCohorts.some((c) => {
         if (c.course_id !== course.id) return false;
@@ -295,39 +304,45 @@ export default function App() {
         )
           return false;
         return true;
-      })
+      }),
     );
   }, [session, isStudent, publishedCohorts]);
 
   const studentNavigation = useMemo(() => {
     const nav: NavItem[] = [
+      { id: "learning-studio", label: "Learning studio", icon: FlaskConical },
       { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     ];
     if (visibleCourses.some((c) => c.code === "JAVA")) {
       nav.push(
         { isHeader: true, label: "OOP Java" },
         { id: "java-learn", label: "Theory (5 Units)", icon: LibraryBig },
-        { id: "java-lab", label: "Lab (21 Exp)", icon: Braces }
+        { id: "java-lab", label: "Lab (21 Exp)", icon: Braces },
       );
     }
     if (visibleCourses.some((c) => c.code === "DBMS")) {
       nav.push(
         { isHeader: true, label: "DBMS" },
         { id: "dbms-learn", label: "Theory (5 Units)", icon: LibraryBig },
-        { id: "dbms-lab", label: "Lab (10 Exp)", icon: Braces }
+        { id: "dbms-lab", label: "Lab (10 Exp)", icon: Braces },
       );
     }
     if (visibleCourses.length > 0) {
       nav.push(
         { isHeader: true, label: "Practice & Exams" },
         { id: "coursework", label: "Practice", icon: ClipboardList },
-        { id: "assessment", label: "Assessments", icon: ClipboardCheck }
+        { id: "assessment", label: "Assessments", icon: ClipboardCheck },
       );
     }
     return nav;
   }, [visibleCourses]);
 
-  const navigation = session?.user.role === "admin" ? adminNavigation : (isStudent ? studentNavigation : facultyNavigation);
+  const navigation =
+    session?.user.role === "admin"
+      ? adminNavigation
+      : isStudent
+        ? studentNavigation
+        : facultyNavigation;
   const [title, subtitle] = pageTitle(view);
 
   const visibleResources = useMemo(() => {
@@ -341,13 +356,24 @@ export default function App() {
     const visibleCodes = visibleCourses.map((c) => c.code as string);
     return dashboardAssignments.filter((a) => {
       const code = a.course_code || a.subjects?.id || "";
-      return visibleCodes.some(vc => code.toLowerCase().includes(vc.toLowerCase()));
+      return visibleCodes.some((vc) =>
+        code.toLowerCase().includes(vc.toLowerCase()),
+      );
     });
   }, [dashboardAssignments, visibleCourses, isStudent]);
 
   const content = useMemo(() => {
     if (!session) return null;
-    if (view === "admin-dashboard") return <SuperAdminDashboard token={session.token} />;
+    if (view === "learning-studio")
+      return (
+        <LearningStudio
+          session={session}
+          theme={theme}
+          onEvent={emitActivity}
+        />
+      );
+    if (view === "admin-dashboard")
+      return <SuperAdminDashboard token={session.token} />;
     if (view === "dashboard") {
       return isStudent ? (
         <StudentDashboard
@@ -386,7 +412,8 @@ export default function App() {
       return (
         <ResourceViewer
           key="java-theory"
-          session={session} theme={theme}
+          session={session}
+          theme={theme}
           user={session.user}
           resources={visibleResources}
           courseFilter="JAVA"
@@ -397,7 +424,8 @@ export default function App() {
       return (
         <ResourceViewer
           key="dbms-theory"
-          session={session} theme={theme}
+          session={session}
+          theme={theme}
           user={session.user}
           resources={visibleResources}
           courseFilter="DBMS"
@@ -452,7 +480,8 @@ export default function App() {
           onChange={setLearningResources}
         />
       );
-    if (view === "enrollment") return <FacultyEnrollmentManager session={session} />;
+    if (view === "enrollment")
+      return <FacultyEnrollmentManager session={session} />;
     if (view === "telemetry") return <FacultyAnalytics session={session} />;
     if (view === "settings") return <SettingsView session={session} />;
     return (
@@ -672,7 +701,11 @@ export default function App() {
               ) : (
                 <Users size={17} />
               )}
-              {session.user.role === "student" ? "Student" : session.user.role === "admin" ? "Super Admin" : "Faculty"}
+              {session.user.role === "student"
+                ? "Student"
+                : session.user.role === "admin"
+                  ? "Super Admin"
+                  : "Faculty"}
               <ChevronDown size={14} className="text-[var(--muted)]" />
             </button>
           </div>
@@ -687,6 +720,12 @@ export default function App() {
               exit={{ opacity: 0, y: -5 }}
               transition={{ duration: 0.18 }}
             >
+              {session.user.isTester && (
+                <p className="mb-4 rounded-lg border border-amber-400 bg-amber-500/10 p-3 text-sm">
+                  Tester account · activity is labeled separately and excluded
+                  from student rosters.
+                </p>
+              )}
               {content}
             </motion.div>
           </AnimatePresence>

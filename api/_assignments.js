@@ -8,6 +8,7 @@ import {
   handleOptions,
   methodNotAllowed,
   requireUser,
+  isTester,
   requireFields,
   sendError,
   setCors,
@@ -218,7 +219,8 @@ export default async function handler(req, res) {
                   : [];
                 return (
                   assignedUserIds.length === 0 ||
-                  assignedUserIds.includes(actor.id)
+                  assignedUserIds.includes(actor.id) ||
+                  isTester(actor)
                 );
               })
               .map((assignment) => ({

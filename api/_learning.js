@@ -9,6 +9,7 @@ import {
   handleOptions,
   methodNotAllowed,
   requireUser,
+  isTester,
   sendError,
   setCors,
 } from "./_shared.js";
@@ -199,11 +200,11 @@ export default async function handler(req, res) {
           actor.role === "student"
             ? supabase
                 .from("users")
-                .select("id,name,email,role,roll_number,batch,is_active")
+                .select("id,name,email,role,title,roll_number,batch,is_active")
                 .eq("id", actor.id)
             : supabase
                 .from("users")
-                .select("id,name,email,role,roll_number,batch,is_active"),
+                .select("id,name,email,role,title,roll_number,batch,is_active"),
         ]);
       if (error) throw error;
       if (peopleError) throw peopleError;
@@ -211,7 +212,11 @@ export default async function handler(req, res) {
         records: (data || [])
           .filter((record) => canRead(record, actor))
           .map((record) => studentSafe(record, actor)),
-        people: (people || []).filter((person) => person.is_active !== false),
+        people: (people || []).filter(
+          (person) =>
+            person.is_active !== false &&
+            (!isTester(person) || person.id === actor.id),
+        ),
         aiConfigured: false,
       });
     }
@@ -479,7 +484,11 @@ export default async function handler(req, res) {
         )
           ? submissionAssignment.assigned_user_ids
           : [];
-        if (assignedIds.length > 0 && !assignedIds.includes(actor.id))
+        if (
+          !isTester(actor) &&
+          assignedIds.length > 0 &&
+          !assignedIds.includes(actor.id)
+        )
           return res
             .status(403)
             .json({ error: "This assignment is not assigned to you" });
@@ -588,7 +597,11 @@ Respond with ONLY a valid JSON object matching this schema:
                 ? (existing?.score ?? null)
                 : Number(body.score)
             : serverScore,
-        metadata: { ...metadata(existing?.metadata), ...submittedMetadata },
+        metadata: {
+          ...metadata(existing?.metadata),
+          ...submittedMetadata,
+          isTester: isTester(actor),
+        },
         updated_at: new Date().toISOString(),
       };
       if (!payload.title || !payload.body)
@@ -624,11 +637,9 @@ Respond with ONLY a valid JSON object matching this schema:
     if (!existing)
       return res.status(404).json({ error: "Learning record not found" });
     if (existing.kind === "submission" && actor.role === "student")
-      return res
-        .status(403)
-        .json({
-          error: "Use the validated submission workflow to save your work",
-        });
+      return res.status(403).json({
+        error: "Use the validated submission workflow to save your work",
+      });
     if (
       actor.role !== "admin" &&
       existing.author_id !== actor.id &&

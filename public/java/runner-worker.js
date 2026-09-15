@@ -1,5 +1,11 @@
 /* Runs only inside runner-frame.html's opaque-origin, network-disabled sandbox. */
 self.onmessage = async ({ data }) => {
+  if (data.debugResume) {
+    const thread = self.asterDebugThread;
+    self.asterDebugThread = null;
+    if (thread) thread.asyncReturn();
+    return;
+  }
   const started = performance.now();
   let stdout = "",
     stderr = "";
@@ -66,6 +72,19 @@ self.onmessage = async ({ data }) => {
     process.stderr.on("data", (bytes) => capture("err", bytes));
     fs.writeFileSync("/tmp/ecj.jar", new Buffer(data.compiler));
     fs.writeFileSync("/tmp/h2.jar", new Buffer(data.jdbc));
+    if (data.debug) {
+      // Pinned Doppio ThreadStatus.ASYNC_WAITING = 6. A resume message performs
+      // asyncReturn on this native frame; the Java thread cannot advance meanwhile.
+      fs.mkdirSync("/tmp/debug-natives");
+      fs.writeFileSync(
+        "/tmp/debug-natives/aster-debug.js",
+        'registerNatives({"AsterDebug":{"pause(Ljava/lang/String;IIIZ)V":function(thread,stage,n,candidate,divisor,prime){if(self.asterDebugThread){thread.throwNewException("Ljava/lang/IllegalStateException;","Only one debug thread is supported");return;} self.asterDebugThread=thread;thread.setStatus(6);self.postMessage({debugSnapshot:{stage:stage.toString(),n:n,candidate:candidate,divisor:divisor,prime:!!prime}});}}});',
+      );
+      fs.writeFileSync(
+        "/work/AsterDebug.java",
+        "public class AsterDebug { public static native void pause(String stage, int n, int candidate, int divisor, boolean prime); }",
+      );
+    }
     // Ignore comments and literals when locating a conventional entry class.
     const sourceHeader = data.code.replace(
       /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g,
@@ -105,6 +124,9 @@ self.onmessage = async ({ data }) => {
           {
             doppioHomePath: "/sys",
             properties: { "java.awt.headless": "true" },
+            ...(data.debug
+              ? { nativeClasspath: ["/sys/natives", "/tmp/debug-natives"] }
+              : {}),
           },
           resolve,
         ),
@@ -125,6 +147,7 @@ self.onmessage = async ({ data }) => {
       "/work",
       "/work/" + entryClass + ".java",
       "/work/AsterLabLauncher.java",
+      ...(data.debug ? ["/work/AsterDebug.java"] : []),
     ]);
     if (compiled !== 0) {
       result("error");

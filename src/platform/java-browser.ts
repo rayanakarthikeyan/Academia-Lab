@@ -12,6 +12,17 @@ export interface RuntimeFile {
 }
 
 export interface RunOptions {
+  debug?: boolean;
+  onDebugSnapshot?: (
+    snapshot: {
+      stage: string;
+      n: number;
+      candidate: number;
+      divisor: number;
+      prime: boolean;
+    },
+    resume: () => void,
+  ) => void;
   files?: RuntimeFile[];
   signal?: AbortSignal;
   onProgress?: (phase: string) => void;
@@ -76,11 +87,13 @@ export function runJavaInBrowser(
     let frame: HTMLIFrameElement | undefined;
     let done = false;
     let executionTimer: ReturnType<typeof setTimeout> | undefined;
+    let debugTimer: ReturnType<typeof setTimeout> | undefined;
     const finish = (result: JavaRunResult) => {
       if (done) return;
       done = true;
       clearTimeout(loadTimer);
       clearTimeout(executionTimer);
+      clearTimeout(debugTimer);
       options.signal?.removeEventListener("abort", cancel);
       window.removeEventListener("message", receive);
       frame?.contentWindow?.postMessage({ type: "cancel" }, "*");
@@ -109,9 +122,32 @@ export function runJavaInBrowser(
         event.data?.type !== "kgr-java"
       )
         return;
+      if (options.debug && event.data.debugSnapshot) {
+        clearTimeout(executionTimer);
+        let resumed = false;
+        options.onDebugSnapshot?.(event.data.debugSnapshot, () => {
+          if (done || resumed) return;
+          resumed = true;
+          executionTimer = setTimeout(
+            () =>
+              fail("Java execution exceeded 15 seconds between checkpoints."),
+            15000,
+          );
+          frame?.contentWindow?.postMessage({ type: "debug-resume" }, "*");
+        });
+        return;
+      }
       if (event.data.phase) {
         options.onProgress?.(String(event.data.phase));
         if (event.data.phase === "Running Java…") {
+          if (options.debug)
+            debugTimer = setTimeout(
+              () =>
+                fail(
+                  "Debug session reached its 5-minute limit. Start a new session.",
+                ),
+              300000,
+            );
           clearTimeout(executionTimer);
           executionTimer = setTimeout(
             () =>
@@ -181,6 +217,7 @@ export function runJavaInBrowser(
               code,
               stdin,
               files: options.files || [],
+              debug: options.debug === true,
               assets: copy,
             },
             "*",

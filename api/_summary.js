@@ -3,6 +3,7 @@ import {
   handleOptions,
   methodNotAllowed,
   requireAdmin,
+  isTester,
   sendError,
   setCors,
 } from "./_shared.js";
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
     if (assignmentError) throw assignmentError;
 
     return res.status(200).json({
-      users: users || [],
+      users: (users || []).filter((user) => !isTester(user)),
       subjectCount: subjectCount || 0,
       assignmentCount: assignmentCount || 0,
     });

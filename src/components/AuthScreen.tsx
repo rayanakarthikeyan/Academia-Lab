@@ -1,4 +1,4 @@
-import { APP_NAME } from '../platform/branding';
+import { APP_NAME } from "../platform/branding";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -108,8 +108,8 @@ export function AuthScreen({
                 Theory becomes practice here.
               </h1>
               <p className="mt-6 max-w-[560px] text-lg leading-8 text-[var(--muted)]">
-                The academic workspace for {APP_NAME} students, with guided theory, practice, proctored
-                assessment, and instrumented labs.
+                The academic workspace for {APP_NAME} students, with guided
+                theory, practice, proctored assessment, and instrumented labs.
               </p>
             </motion.div>
             <div className="mt-12 grid grid-cols-3 gap-4">
@@ -157,9 +157,7 @@ export function AuthScreen({
                 <Command size={21} />
               </span>
               <div>
-                <strong className="block">
-                  {APP_NAME}
-                </strong>
+                <strong className="block">{APP_NAME}</strong>
                 <span className="text-xs text-[var(--muted)]">
                   Academic Learning Platform
                 </span>
@@ -304,11 +302,13 @@ export function AuthScreen({
                   <KeyRound size={18} />
                   <input
                     required
-                    minLength={8}
+                    minLength={registering ? 8 : 1}
                     type={showPassword ? "text" : "password"}
                     value={form.password}
                     onChange={(e) => update("password", e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder={
+                      registering ? "At least 8 characters" : "Your password"
+                    }
                   />
                   <button
                     type="button"

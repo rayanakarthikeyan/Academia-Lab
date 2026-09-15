@@ -13,6 +13,7 @@ import {
   requireUser,
   requireFields,
   safeUser,
+  isTester,
   sendError,
   setCors,
 } from "./_shared.js";
@@ -90,7 +91,15 @@ export default async function handler(req, res) {
 
       const { data, error } = await request;
       if (error) throw error;
-      return res.status(200).json({ users: data || [] });
+      return res
+        .status(200)
+        .json({
+          users: (data || [])
+            .filter((user) =>
+              query.testers === "1" ? isTester(user) : !isTester(user),
+            )
+            .map(safeUser),
+        });
     }
 
     if (!["POST", "PATCH", "DELETE"].includes(req.method)) {
@@ -111,11 +120,9 @@ export default async function handler(req, res) {
 
       const payload = normalizeUserPayload(body);
       if (payload.role === "admin") {
-        return res
-          .status(403)
-          .json({
-            error: "Additional Super Admin accounts cannot be created here",
-          });
+        return res.status(403).json({
+          error: "Additional Super Admin accounts cannot be created here",
+        });
       }
       payload.id = cleanText(body.id) || createUserId(payload.role);
       payload.is_active =

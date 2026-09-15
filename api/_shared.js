@@ -365,6 +365,10 @@ export function assertSubjectType(type) {
   }
 }
 
+export function isTester(user) {
+  return user?.role === "student" && user?.title === "Platform tester";
+}
+
 export function safeUser(user) {
   if (!user) return user;
   const {
@@ -372,7 +376,7 @@ export function safeUser(user) {
     password_hash: _passwordHash,
     ...publicUser
   } = user;
-  return publicUser;
+  return { ...publicUser, isTester: isTester(user) };
 }
 
 export function hashPassword(password) {

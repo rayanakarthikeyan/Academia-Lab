@@ -19,9 +19,13 @@
       cleanup();
       return;
     }
+    if (event.data?.type === "debug-resume") {
+      worker?.postMessage({ debugResume: true });
+      return;
+    }
     if (event.data?.type !== "run" || worker) return;
     try {
-      const { assets, code, stdin, files } = event.data;
+      const { assets, code, stdin, files, debug } = event.data;
       const blobUrl = (text) => {
         const url = URL.createObjectURL(
           new Blob([text], { type: "text/javascript" }),
@@ -56,6 +60,7 @@
           code,
           stdin,
           files,
+          debug,
           runtime: assets.runtime,
           compiler: assets.compiler,
           jdbc: assets.jdbc,

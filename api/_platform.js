@@ -9,6 +9,7 @@ import {
   methodNotAllowed,
   requireFields,
   requireUser,
+  isTester,
   sendError,
   setCors,
 } from "./_shared.js";
@@ -121,7 +122,8 @@ export default async function handler(req, res) {
                 : [];
               return (
                 assignedUserIds.length === 0 ||
-                assignedUserIds.includes(actor.id)
+                assignedUserIds.includes(actor.id) ||
+                isTester(actor)
               );
             })
           : data || [];
@@ -154,7 +156,8 @@ export default async function handler(req, res) {
           if (
             !target ||
             (!assignmentId && target.is_published === false) ||
-            (target.assigned_user_ids?.length &&
+            (!isTester(actor) &&
+              target.assigned_user_ids?.length &&
               !target.assigned_user_ids.includes(actor.id))
           )
             return res
@@ -191,7 +194,7 @@ export default async function handler(req, res) {
             0,
             Math.min(3600, Number(body.durationSeconds) || 0),
           ),
-          metadata: metadata(body.metadata),
+          metadata: { ...metadata(body.metadata), isTester: isTester(actor) },
           occurred_at: now,
         };
         if (eventId) {

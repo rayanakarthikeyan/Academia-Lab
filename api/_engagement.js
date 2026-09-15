@@ -134,14 +134,18 @@ export default async function handler(req, res) {
       const [{ data, error }, { data: users, error: usersError }] =
         await Promise.all([
           request,
-          supabase.from("users").select("id,name,role,is_active"),
+          supabase.from("users").select("id,name,role,title,is_active"),
         ]);
       if (error) throw error;
       if (usersError) throw usersError;
 
       return res.status(200).json({
         records: (data || []).filter((record) => canRead(record, actor)),
-        people: (users || []).filter((user) => user.is_active !== false),
+        people: (users || []).filter(
+          (user) =>
+            user.is_active !== false &&
+            (user.title !== "Platform tester" || user.id === actor.id),
+        ),
       });
     }
 

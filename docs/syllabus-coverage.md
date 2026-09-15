@@ -8,7 +8,7 @@ The IDE now separates instructions, source/input, and output/checks. Student inp
 
 | Lab | Requirement | Current support |
 | --- | --- | --- |
-| 1 | IDE study, primes, step debugging | Prime program works; debugger/refactoring tooling remains incomplete |
+| 1 | IDE study, primes, step debugging | Live guided Java debugger: edit code/input, pause at explicit checkpoints, inspect variables, Step, Continue to breakpoint, run to end, and replay trace. Not arbitrary-line or multi-thread debugging; semantic refactoring remains outside scope |
 | 2 | Quadratic roots with input | Browser Java console |
 | 3 | Matrix multiplication | Browser Java console |
 | 4 | Inheritance, final, abstract classes | Browser Java console |
@@ -17,32 +17,32 @@ The IDE now separates instructions, source/input, and output/checks. Student inp
 | 7 | Method overriding | Browser Java console |
 | 8 | Currency converter using interfaces | Browser Java console |
 | 9 | User-defined exceptions | Browser Java console |
-| 10 | Division GUI and exception dialogs | Requires native Java GUI runtime |
+| 10 | Division GUI and exception dialogs | Interactive division/exception simulation; original Java GUI runtime unsupported |
 | 11 | Three threads, random values each second | Browser Java, bounded by execution timeout |
 | 12 | Producer-consumer / synchronization | Browser Java, bounded by execution timeout |
 | 13 | File splitting | Upload files, split with java.io, download resulting files; fresh virtual filesystem per run |
 | 14 | File metadata with filename input | Upload a file and supply its filename; java.io metadata works on the uploaded copy |
 | 15 | JDBC CRUD | Real JDBC with embedded H2 works; use org.h2.Driver and jdbc:h2:mem:lab. Oracle/MySQL drivers and server connections remain unsupported |
-| 16 | Traffic lights and radio buttons | Requires native Java GUI runtime |
-| 17 | Mouse events and adapter classes | Requires native Java GUI runtime |
-| 18 | Keyboard events | Requires native Java GUI runtime |
-| 19 | Calculator with grid layout | Requires native Java GUI runtime |
-| 20 | Message Applet | Requires legacy-compatible Java runtime |
-| 21 | Factorial Applet with input | Requires legacy-compatible Java runtime |
+| 16 | Traffic lights and radio buttons | Traffic safety challenge with radio controls; original Swing runtime unsupported |
+| 17 | Mouse events and adapter classes | Pointer event surface and accessible event simulation controls; original Swing runtime unsupported |
+| 18 | Keyboard events | Physical key/input event timeline and virtual keypad; original Swing runtime unsupported |
+| 19 | Calculator with grid layout | Interactive keypad and operation/error feedback; original Swing runtime unsupported |
+| 20 | Message Applet | Interactive lifecycle and message canvas; original Applet runtime unsupported |
+| 21 | Factorial Applet with input | Prediction, input validation and stepwise factorial visualization; original Applet runtime unsupported |
 
 HTML/JavaScript examples are explicitly labeled alternatives. They do not establish compatibility with the original Java programs.
 
 JDBC uses the pinned H2 2.2.224 archive inside the existing opaque-origin, network-disabled JVM sandbox. No JDBC server is installed. Reference code accepts a name from stdin and demonstrates prepared statements, creation, insertion, update, query and deletion. Existing assignments marked external offer a “Use built-in H2 JDBC” button. This verifies JDBC concepts, not compatibility with Oracle/MySQL drivers or connection strings. HSQLDB 2.7.4 was also probed but failed initialization in Doppio; it is not shipped.
 
-Java file limits: 10 uploaded data files totaling 1 MB; up to 20 top-level output files totaling 2 MB. Files must be uploaded again after a page reload. Student files are not sent to the server. Arbitrary host filesystem access, directory uploads, java.nio.file, and automatic submission of file contents are not supported. A conventional public entry class (including a package declaration) no longer needs to be renamed Main; a public static main method is required. Multiple source-file projects and step debugging remain incomplete.
+Java file limits: 10 uploaded data files totaling 1 MB; up to 20 top-level output files totaling 2 MB. Files must be uploaded again after a page reload. Student files are not sent to the server. Arbitrary host filesystem access, directory uploads, java.nio.file, and automatic submission of file contents are not supported. A conventional public entry class (including a package declaration) no longer needs to be renamed Main; a public static main method is required. Multiple source-file projects and general arbitrary-line debugging remain outside scope.
 
 ## DBMS — 10 experiments
 
 | Lab | Requirement | Current support |
 | --- | --- | --- |
-| 1 | E-R conceptual design | Design evidence/faculty review; no ER diagram editor yet |
+| 1 | E-R conceptual design | ER library mission: editable entities, attributes, primary/foreign keys, 1:1 and 1:N links, live SVG diagram, JSON export and generated PostgreSQL; N:M via junction entity |
 | 2 | Relational model | SQL tables and constraints in SQLite or PostgreSQL; design evidence still needs faculty review |
-| 3 | Normalization | Design evidence/faculty review; execution alone is insufficient |
+| 3 | Normalization | Editable enrollment dataset, dependency challenge, duplicate/FD validation, executable decomposition and reconstruction check. General proof still needs faculty review |
 | 4 | DDL | SQLite or PostgreSQL DDL; not all Oracle DDL |
 | 5 | DML | SQLite or PostgreSQL DML |
 | 6 | ANY, ALL, IN, EXISTS, set operators, constraints | PostgreSQL executes quantified ANY/ALL; SQLite retains its dialect limits |

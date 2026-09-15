@@ -9,6 +9,8 @@
     "test:features": "node scripts/features-browser.test.mjs",
     "test:ide": "node scripts/ide-telemetry.test.mjs",
     "test:proctor": "node scripts/proctor-browser.test.mjs",
+    "test:studio": "node scripts/studio-browser.test.mjs",
+    "test:tester": "node scripts/tester-workflow.test.mjs",
     "test:runtimes": "node scripts/runtime-extensions.test.mjs",
     "test:runtime-ui": "node scripts/runtime-ui.test.mjs",
     "test:runtime-production": "node scripts/postgres-production.test.mjs",
