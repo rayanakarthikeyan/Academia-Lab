@@ -174,6 +174,12 @@ export function FacultyActivityHistory({
             {typeof event.metadata.runtime === "string" && (
               <p>Runtime: {event.metadata.runtime}</p>
             )}
+            {typeof event.metadata.draftId === "string" && (
+              <p className="mt-2 break-all">
+                Unpublished draft: {event.metadata.draftId} · saved version{" "}
+                {String(event.metadata.draftSavedAt || "")}
+              </p>
+            )}
             {typeof event.metadata.contextDigest === "string" && (
               <p className="mt-2 break-all">
                 Runtime and files fingerprint: {event.metadata.contextDigest}

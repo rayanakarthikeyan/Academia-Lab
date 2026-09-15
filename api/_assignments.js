@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { labDrafts } from "./_lab-drafts.js";
 import { activityTemplates } from "../server/curriculum-templates.js";
 import {
   cleanText,
@@ -183,6 +184,8 @@ export default async function handler(req, res) {
   try {
     const supabase = createSupabaseClient({ requirePrivileged: true });
     const actor = await requireUser(supabase, req);
+    if (getQuery(req).drafts === "1")
+      return await labDrafts(req, res, supabase, actor);
 
     if (req.method === "GET") {
       const query = getQuery(req);

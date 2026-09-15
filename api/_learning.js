@@ -148,6 +148,7 @@ async function refreshAssignmentCounts(supabase, assignmentId) {
 }
 
 function canRead(record, actor) {
+  if (record.kind === "lab_draft") return false;
   if (actor.role !== "student") return true;
   if (record.kind === "question") return true;
   return record.author_id === actor.id;
@@ -170,6 +171,14 @@ export default async function handler(req, res) {
   try {
     const supabase = createSupabaseClient({ requirePrivileged: true });
     const actor = await requireUser(supabase, req);
+    if (
+      cleanText(getBody(req).id || getQuery(req).id).startsWith(
+        "faculty-draft:",
+      )
+    )
+      return res
+        .status(403)
+        .json({ error: "Use the authorized faculty draft workflow" });
 
     if (req.method === "GET") {
       const query = getQuery(req);

@@ -5,6 +5,7 @@ import users from "../api/_users.js";
 import assignments from "../api/_assignments.js";
 import platform from "../api/_platform.js";
 import autoGrade from "../api/_auto-grade-bulk.js";
+import learning from "../api/_learning.js";
 import { createSupabaseClient, hashPassword } from "../api/_shared.js";
 process.env.LOCAL_API_SEED_PATH = fileURLToPath(
   new URL("../server/db.seed.json", import.meta.url),
@@ -35,17 +36,15 @@ for (const [id, role, title] of [
   ["student-fixture", "student", "Student"],
   ["faculty-fixture", "faculty", "Faculty"],
 ]) {
-  const { error } = await db
-    .from("users")
-    .insert({
-      id,
-      name: id,
-      email: id + "@example.invalid",
-      role,
-      title,
-      password_hash: hashPassword("test123"),
-      is_active: true,
-    });
+  const { error } = await db.from("users").insert({
+    id,
+    name: id,
+    email: id + "@example.invalid",
+    role,
+    title,
+    password_hash: hashPassword("test123"),
+    is_active: true,
+  });
   assert.equal(error, null);
 }
 const signIn = async (id) =>
@@ -79,16 +78,14 @@ assert.equal(
   403,
 );
 assert.equal((await call(autoGrade, "POST", {}, tester.token)).status, 403);
-await db
-  .from("assignments")
-  .insert({
-    id: "tester-assignment",
-    title: "Targeted lab",
-    course_code: "JAVA",
-    assigned_user_ids: ["someone-else"],
-    questions: [],
-    test_cases: [],
-  });
+await db.from("assignments").insert({
+  id: "tester-assignment",
+  title: "Targeted lab",
+  course_code: "JAVA",
+  assigned_user_ids: ["someone-else"],
+  questions: [],
+  test_cases: [],
+});
 assert.ok(
   (await call(assignments, "GET", {}, tester.token)).assignments.some(
     (a) => a.id === "tester-assignment",
@@ -132,4 +129,104 @@ for (const [actor, spoofed] of [
 }
 console.log(
   "PASS tester login, roster separation, targeted lab access, faculty-only restrictions and server-derived telemetry identity",
+);
+
+const draftQuery = { drafts: "1" };
+const draft = {
+  id: "custom-preview",
+  title: "Private faculty experiment",
+  courseCode: "JAVA",
+  brief: "Print a number",
+  starterCode: "class Main {}",
+  expectedOutput: "",
+  unit: 1,
+  isCustom: true,
+};
+assert.equal(
+  (await call(assignments, "POST", { draft }, student.token, draftQuery))
+    .status,
+  403,
+);
+assert.equal(
+  (await call(assignments, "POST", { draft }, tester.token, draftQuery)).status,
+  403,
+);
+const saved = await call(
+  assignments,
+  "POST",
+  { draft },
+  faculty.token,
+  draftQuery,
+);
+assert.equal(saved.status, 200);
+assert.equal(
+  (await call(assignments, "GET", {}, student.token, draftQuery)).status,
+  403,
+);
+assert.equal(
+  (await call(assignments, "GET", {}, tester.token, draftQuery)).drafts[0].draft
+    .title,
+  draft.title,
+);
+for (const actor of [student, tester, faculty]) {
+  const ordinary = await call(learning, "GET", {}, actor.token);
+  assert.ok(!ordinary.records.some((row) => row.id === saved.draft.id));
+  assert.equal(
+    (
+      await call(
+        learning,
+        "PATCH",
+        { id: saved.draft.id, body: "overwrite" },
+        actor.token,
+      )
+    ).status,
+    403,
+  );
+}
+assert.equal(
+  (
+    await call(
+      assignments,
+      "POST",
+      { draft: { ...draft, title: "Updated private draft" } },
+      faculty.token,
+      draftQuery,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (await call(assignments, "GET", {}, tester.token, draftQuery)).drafts.length,
+  1,
+);
+assert.equal(
+  (
+    await call(
+      assignments,
+      "DELETE",
+      { draftId: draft.id },
+      tester.token,
+      draftQuery,
+    )
+  ).status,
+  403,
+);
+assert.equal(
+  (
+    await call(
+      assignments,
+      "DELETE",
+      { draftId: draft.id },
+      faculty.token,
+      draftQuery,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (await call(assignments, "GET", {}, tester.token, draftQuery)).drafts.length,
+  0,
+);
+console.log(
+  "PASS private draft create/update/delete, tester read-only preview, student denial and generic API isolation",
 );

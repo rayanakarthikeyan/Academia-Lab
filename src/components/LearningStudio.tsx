@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TesterDrafts } from "./TesterDrafts";
 import { curriculumCatalog as curriculum } from "../platform/curriculum";
 import type {
   ActivityLog,
@@ -104,6 +105,9 @@ export function LearningStudio({
   }
   return (
     <section className="space-y-4">
+      {session.user.isTester && (
+        <TesterDrafts session={session} theme={theme} onEvent={onEvent} />
+      )}
       <div className="panel p-5">
         <h2 className="text-xl font-semibold">Learning studio</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">

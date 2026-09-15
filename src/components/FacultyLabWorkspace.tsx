@@ -1,4 +1,5 @@
 import { visualStarter } from "../platform/visual-labs";
+import { draftRequest } from "../platform/lab-drafts";
 import {
   CalendarDays,
   CheckCircle2,
@@ -12,11 +13,11 @@ import {
   Send,
   Trash2,
   X,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { createCourseworkAssignment, loadCoursework } from '../platform/api';
-import { curriculumCatalog } from '../platform/curriculum';
-import { needsDesktopJava } from '../platform/java-support';
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createCourseworkAssignment, loadCoursework } from "../platform/api";
+import { curriculumCatalog } from "../platform/curriculum";
+import { needsDesktopJava } from "../platform/java-support";
 import type {
   AssignmentRecord,
   AssignmentSubject,
@@ -24,7 +25,7 @@ import type {
   CourseCode,
   CurriculumItem,
   SessionUser,
-} from '../platform/types';
+} from "../platform/types";
 
 // Editable snapshot of an experiment before publishing
 interface ExperimentDraft {
@@ -48,14 +49,16 @@ function defaultDueDate() {
   return d.toISOString().slice(0, 10);
 }
 
-function subjectForCourse(courseCode: CourseCode, subjects: AssignmentSubject[]) {
+function subjectForCourse(
+  courseCode: CourseCode,
+  subjects: AssignmentSubject[],
+) {
   return (
     subjects.find((s) =>
-      courseCode === 'JAVA'
-        ? s.name.toLowerCase().includes('java') || s.id.includes('java')
-        : /dbms|database/i.test(s.name + ' ' + s.id),
-    )?.id ||
-    ''
+      courseCode === "JAVA"
+        ? s.name.toLowerCase().includes("java") || s.id.includes("java")
+        : /dbms|database/i.test(s.name + " " + s.id),
+    )?.id || ""
   );
 }
 
@@ -67,7 +70,7 @@ function makeDraftFromItem(item: CurriculumItem): ExperimentDraft {
     title: item.title,
     brief: item.brief,
     starterCode: item.starterCode,
-    expectedOutput: item.expectedOutput || '',
+    expectedOutput: item.expectedOutput || "",
     suggestedMarks: item.suggestedMarks,
     outcomes: [...item.outcomes],
     unit: item.unit,
@@ -88,25 +91,55 @@ function EditPanel({
   return (
     <div className="rounded-xl border-2 border-cyan-400/30 bg-[var(--surface-2)] p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[.14em] text-cyan-600">Edit Experiment</p>
-        <button className="icon-button" onClick={onClose} type="button" title="Close editor">
+        <p className="text-xs font-bold uppercase tracking-[.14em] text-cyan-600">
+          Edit Experiment
+        </p>
+        <button
+          className="icon-button"
+          onClick={onClose}
+          type="button"
+          title="Close editor"
+        >
           <X size={15} />
         </button>
       </div>
 
-      <label>Execution environment
-        <select value={draft.environment || (draft.courseCode === 'JAVA' && needsDesktopJava(draft.id) ? 'external' : 'runner')} onChange={e => set('environment', e.target.value)}>
-          <option value="runner">Built-in Java / SQL</option><option value="external">Desktop Java / external lab</option><option value="visual">Visual canvas (HTML / JavaScript)</option>
+      <label>
+        Execution environment
+        <select
+          value={
+            draft.environment ||
+            (draft.courseCode === "JAVA" && needsDesktopJava(draft.id)
+              ? "external"
+              : "runner")
+          }
+          onChange={(e) => set("environment", e.target.value)}
+        >
+          <option value="runner">Built-in Java / SQL</option>
+          <option value="external">Desktop Java / external lab</option>
+          <option value="visual">Visual canvas (HTML / JavaScript)</option>
         </select>
       </label>
-      {draft.environment === 'visual' && <button type="button" className="secondary-button" onClick={() => set('starterCode', visualStarter)}>Use traffic light visual example</button>}
+      {draft.environment === "visual" && (
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => set("starterCode", visualStarter)}
+        >
+          Use traffic light visual example
+        </button>
+      )}
       <label className="block text-xs font-semibold">
         Experiment Title
         <input
           className="mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-cyan-400"
-          style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)' }}
+          style={{
+            borderColor: "var(--line)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+          }}
           value={draft.title}
-          onChange={(e) => set('title', e.target.value)}
+          onChange={(e) => set("title", e.target.value)}
         />
       </label>
 
@@ -114,9 +147,14 @@ function EditPanel({
         Description / Task Instructions
         <textarea
           className="mt-1 w-full rounded-md border px-3 py-2 text-xs leading-5 outline-none focus:border-cyan-400"
-          style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)', minHeight: '90px' }}
+          style={{
+            borderColor: "var(--line)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+            minHeight: "90px",
+          }}
           value={draft.brief}
-          onChange={(e) => set('brief', e.target.value)}
+          onChange={(e) => set("brief", e.target.value)}
         />
       </label>
 
@@ -124,9 +162,14 @@ function EditPanel({
         Starter Code
         <textarea
           className="mt-1 w-full rounded-md border px-3 py-2 font-mono text-xs leading-5 outline-none focus:border-cyan-400"
-          style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)', minHeight: '80px' }}
+          style={{
+            borderColor: "var(--line)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+            minHeight: "80px",
+          }}
           value={draft.starterCode}
-          onChange={(e) => set('starterCode', e.target.value)}
+          onChange={(e) => set("starterCode", e.target.value)}
         />
       </label>
 
@@ -134,10 +177,15 @@ function EditPanel({
         Expected Output / Observations <span className="text-rose-500">*</span>
         <textarea
           className="mt-1 w-full rounded-md border px-3 py-2 font-mono text-xs leading-5 outline-none focus:border-cyan-400"
-          style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)', minHeight: '80px' }}
+          style={{
+            borderColor: "var(--line)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+            minHeight: "80px",
+          }}
           placeholder="Enter expected output that students should match..."
           value={draft.expectedOutput}
-          onChange={(e) => set('expectedOutput', e.target.value)}
+          onChange={(e) => set("expectedOutput", e.target.value)}
         />
       </label>
 
@@ -145,31 +193,37 @@ function EditPanel({
         <label className="block text-xs font-semibold">
           Marks
           <input
-            type="number" min="1" max="100"
+            type="number"
+            min="1"
+            max="100"
             className="mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-cyan-400"
-            style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)' }}
+            style={{
+              borderColor: "var(--line)",
+              background: "var(--surface)",
+              color: "var(--ink)",
+            }}
             value={draft.suggestedMarks}
-            onChange={(e) => set('suggestedMarks', Number(e.target.value))}
+            onChange={(e) => set("suggestedMarks", Number(e.target.value))}
           />
         </label>
         <label className="block text-xs font-semibold">
           Course
           <div className="mt-1 segmented-control w-full">
-            {(['JAVA', 'DBMS'] as CourseCode[]).map((c) => (
-              <button key={c} type="button"
-                className={'flex-1 ' + (draft.courseCode === c ? 'active' : '')}
-                onClick={() => set('courseCode', c)}
-              >{c}</button>
+            {(["JAVA", "DBMS"] as CourseCode[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={"flex-1 " + (draft.courseCode === c ? "active" : "")}
+                onClick={() => set("courseCode", c)}
+              >
+                {c}
+              </button>
             ))}
           </div>
         </label>
       </div>
 
-      <button
-        className="secondary-button"
-        type="button"
-        onClick={onClose}
-      >
+      <button className="secondary-button" type="button" onClick={onClose}>
         <CheckCircle2 size={14} /> Done editing
       </button>
     </div>
@@ -180,28 +234,33 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
   const [subjects, setSubjects] = useState<AssignmentSubject[]>([]);
   const [students, setStudents] = useState<SessionUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [dueDates, setDueDates] = useState<Record<string, string>>({});
   const [publishing, setPublishing] = useState<Record<string, boolean>>({});
   const [published, setPublished] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, ExperimentDraft>>({});
-  const [courseFilter, setCourseFilter] = useState<'ALL' | 'JAVA' | 'DBMS'>('ALL');
-  const [customExperiments, setCustomExperiments] = useState<ExperimentDraft[]>([]);
+  const [courseFilter, setCourseFilter] = useState<"ALL" | "JAVA" | "DBMS">(
+    "ALL",
+  );
+  const [customExperiments, setCustomExperiments] = useState<ExperimentDraft[]>(
+    [],
+  );
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   // blank custom experiment template
   const blankCustom = (): ExperimentDraft => ({
-    id: 'custom-' + Date.now(),
-    courseCode: 'JAVA',
-    label: 'Custom Experiment',
-    title: '',
-    brief: '',
-    starterCode: 'public class Main {\n  public static void main(String[] args) {\n    // Your code here\n  }\n}\n',
-    expectedOutput: '',
+    id: "custom-" + Date.now(),
+    courseCode: "JAVA",
+    label: "Custom Experiment",
+    title: "",
+    brief: "",
+    starterCode:
+      "public class Main {\n  public static void main(String[] args) {\n    // Your code here\n  }\n}\n",
+    expectedOutput: "",
     suggestedMarks: 10,
-    outcomes: ['Complete the experiment as described'],
+    outcomes: ["Complete the experiment as described"],
     unit: 1,
     isCustom: true,
   });
@@ -210,45 +269,75 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     let active = true;
     setLoading(true);
     loadCoursework(session.token, true)
-      .then((data) => {
+      .then(async (data) => {
+        const saved = await draftRequest(session.token);
         if (!active) return;
         setSubjects(data.subjects);
         setStudents(data.students);
         const pub: Record<string, boolean> = {};
         data.assignments
-          .filter((a: AssignmentRecord) => a.assignment_type === 'lab')
-          .forEach((a: AssignmentRecord) => { pub[a.curriculum_item_id] = true; });
+          .filter((a: AssignmentRecord) => a.assignment_type === "lab")
+          .forEach((a: AssignmentRecord) => {
+            pub[a.curriculum_item_id] = true;
+          });
         setPublished(pub);
         // pre-populate drafts from catalog
         const d: Record<string, ExperimentDraft> = {};
         curriculumCatalog
-          .filter((item) => item.track === 'lab')
-          .forEach((item) => { d[item.id] = makeDraftFromItem(item); });
+          .filter((item) => item.track === "lab")
+          .forEach((item) => {
+            d[item.id] = makeDraftFromItem(item);
+          });
         const custom: ExperimentDraft[] = [];
         const deadlines: Record<string, string> = {};
-        data.assignments.filter(a => a.assignment_type === 'lab').forEach(a => {
-          const id = a.curriculum_item_id || a.id;
-          const existing = d[id];
-          const draft: ExperimentDraft = {
-            id, courseCode: a.course_code, label: existing?.label || 'Custom experiment',
-            title: a.title, brief: a.description, starterCode: a.starter_code,
-            expectedOutput: a.test_cases?.[0]?.output || '', suggestedMarks: a.max_marks,
-            outcomes: existing?.outcomes || [], unit: a.unit_number,
-            environment: a.execution_environment, isCustom: !existing,
-          };
-          d[id] = draft;
-          pub[id] = true;
-          deadlines[id] = a.due_date;
-          if (!existing) custom.push(draft);
-        });
+        data.assignments
+          .filter((a) => a.assignment_type === "lab")
+          .forEach((a) => {
+            const id = a.curriculum_item_id || a.id;
+            const existing = d[id];
+            const draft: ExperimentDraft = {
+              id,
+              courseCode: a.course_code,
+              label: existing?.label || "Custom experiment",
+              title: a.title,
+              brief: a.description,
+              starterCode: a.starter_code,
+              expectedOutput: a.test_cases?.[0]?.output || "",
+              suggestedMarks: a.max_marks,
+              outcomes: existing?.outcomes || [],
+              unit: a.unit_number,
+              environment: a.execution_environment,
+              isCustom: !existing,
+            };
+            d[id] = draft;
+            pub[id] = true;
+            deadlines[id] = a.due_date;
+            if (!existing) custom.push(draft);
+          });
+        for (const row of saved.drafts || []) {
+          d[row.draft.id] = row.draft;
+          if (
+            row.draft.isCustom &&
+            !custom.some((item) => item.id === row.draft.id)
+          )
+            custom.push(row.draft);
+          else {
+            const index = custom.findIndex((item) => item.id === row.draft.id);
+            if (index >= 0) custom[index] = row.draft;
+          }
+        }
         setCustomExperiments(custom);
         setDueDates(deadlines);
         setPublished({ ...pub });
         setDrafts(d);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [session.token]);
 
   const labExperiments = useMemo(
@@ -256,8 +345,8 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
       curriculumCatalog
         .filter(
           (item) =>
-            item.track === 'lab' &&
-            (courseFilter === 'ALL' || item.courseCode === courseFilter),
+            item.track === "lab" &&
+            (courseFilter === "ALL" || item.courseCode === courseFilter),
         )
         .sort((a, b) =>
           a.courseCode === b.courseCode
@@ -268,7 +357,10 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
   );
 
   const filteredCustom = useMemo(
-    () => customExperiments.filter((e) => courseFilter === 'ALL' || e.courseCode === courseFilter),
+    () =>
+      customExperiments.filter(
+        (e) => courseFilter === "ALL" || e.courseCode === courseFilter,
+      ),
     [customExperiments, courseFilter],
   );
 
@@ -279,46 +371,72 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
 
   const publishExperiment = async (draft: ExperimentDraft) => {
     if (publishing[draft.id] || published[draft.id]) return;
-    setError('');
-    setNotice('');
+    setError("");
+    setNotice("");
     if (!draft.expectedOutput.trim()) {
-      setError('Add expected output or observations for ' + draft.title + ' before publishing.');
+      setError(
+        "Add expected output or observations for " +
+          draft.title +
+          " before publishing.",
+      );
       setEditingId(draft.id);
       return;
     }
     setPublishing((prev) => ({ ...prev, [draft.id]: true }));
     try {
       const subjectId = subjectForCourse(draft.courseCode, subjects);
-      if (!subjectId) throw new Error("No matching subject exists for this course. Add the Java or DBMS subject before publishing.");
+      if (!subjectId)
+        throw new Error(
+          "No matching subject exists for this course. Add the Java or DBMS subject before publishing.",
+        );
       // Empty assigned_user_ids = publish to ALL students (current + future)
       await createCourseworkAssignment(session.token, {
         title: draft.title,
         subjectId,
         dueDate: getDue(draft.id),
         maxMarks: draft.suggestedMarks,
-        description: draft.brief + '\n\nTask:\nComplete the experiment in the IDE workspace below.\n\nExpected Output:\n' + draft.expectedOutput,
+        description:
+          draft.brief +
+          "\n\nTask:\nComplete the experiment in the IDE workspace below.\n\nExpected Output:\n" +
+          draft.expectedOutput,
         starterCode: draft.starterCode,
-        testCases: [{ input: '', output: draft.expectedOutput, hidden: false }],
-        assignedUserIds: [],   // empty = all students (current + future)
+        testCases: [{ input: "", output: draft.expectedOutput, hidden: false }],
+        assignedUserIds: [], // empty = all students (current + future)
         assigned: students.length,
         submitted: 0,
         pending: students.length,
         reviewed: 0,
-        assignmentType: 'lab',
+        assignmentType: "lab",
         curriculumItemId: draft.id,
         courseCode: draft.courseCode,
         unitNumber: draft.unit,
         durationMinutes: 60,
-        workMode: 'ide',
-        executionEnvironment: draft.environment || (draft.courseCode === 'JAVA' && needsDesktopJava(draft.id) ? 'external' : 'runner'),
+        workMode: "ide",
+        executionEnvironment:
+          draft.environment ||
+          (draft.courseCode === "JAVA" && needsDesktopJava(draft.id)
+            ? "external"
+            : "runner"),
         hints: [],
         questions: [],
       });
       setPublished((prev) => ({ ...prev, [draft.id]: true }));
       setEditingId(null);
-      setNotice(draft.label + ': ' + draft.title + ' published � visible to all students including future registrants.');
+      setNotice(
+        draft.label +
+          ": " +
+          draft.title +
+          " published — visible to all students including future registrants.",
+      );
+      try {
+        await draftRequest(session.token, "DELETE", { draftId: draft.id });
+      } catch {
+        setNotice(
+          "Experiment published. Its separate saved tester preview could not be removed; retry from the draft editor later.",
+        );
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not publish experiment');
+      setError(e instanceof Error ? e.message : "Could not publish experiment");
     } finally {
       setPublishing((prev) => ({ ...prev, [draft.id]: false }));
     }
@@ -331,16 +449,44 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     setEditingId(custom.id);
   };
 
-  const removeCustomExperiment = (id: string) => {
+  const removeCustomExperiment = async (id: string) => {
+    try {
+      await draftRequest(session.token, "DELETE", { draftId: id });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove saved draft");
+      return;
+    }
     setCustomExperiments((prev) => prev.filter((e) => e.id !== id));
-    setDrafts((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    setDrafts((prev) => {
+      const n = { ...prev };
+      delete n[id];
+      return n;
+    });
     if (editingId === id) setEditingId(null);
   };
 
   const updateDraft = (draft: ExperimentDraft) => {
     setDrafts((prev) => ({ ...prev, [draft.id]: draft }));
     if (draft.isCustom) {
-      setCustomExperiments((prev) => prev.map((e) => e.id === draft.id ? draft : e));
+      setCustomExperiments((prev) =>
+        prev.map((e) => (e.id === draft.id ? draft : e)),
+      );
+    }
+  };
+
+  const saveForTester = async (draft: ExperimentDraft) => {
+    setError("");
+    setNotice("");
+    setPublishing((prev) => ({ ...prev, [draft.id]: true }));
+    try {
+      await draftRequest(session.token, "POST", { draft });
+      setNotice(
+        "Draft saved for tester preview. Regular students cannot access it. Save again after further edits.",
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save draft");
+    } finally {
+      setPublishing((prev) => ({ ...prev, [draft.id]: false }));
     }
   };
 
@@ -364,39 +510,83 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     const isPublishing = !!publishing[draft.id];
     const isEditing = editingId === draft.id;
     const isExpanded = !!expandedIds[draft.id];
-    const isJava = draft.courseCode === 'JAVA';
-    const accentClass = isJava ? 'bg-cyan-500/10 text-cyan-600' : 'bg-amber-500/10 text-amber-600';
-    const tagClass = isJava ? 'tag cyan' : 'tag amber';
+    const isJava = draft.courseCode === "JAVA";
+    const accentClass = isJava
+      ? "bg-cyan-500/10 text-cyan-600"
+      : "bg-amber-500/10 text-amber-600";
+    const tagClass = isJava ? "tag cyan" : "tag amber";
     const hasOutput = !!draft.expectedOutput.trim();
 
     return (
       <article
         key={draft.id}
-        className={'panel p-5 flex flex-col gap-4 ' + (isPublished ? 'border-emerald-400/40' : !hasOutput ? 'border-amber-400/30' : '')}
-        style={isPublished ? { background: 'rgba(16, 185, 129, 0.03)' } : undefined}
+        className={
+          "panel p-5 flex flex-col gap-4 " +
+          (isPublished
+            ? "border-emerald-400/40"
+            : !hasOutput
+              ? "border-amber-400/30"
+              : "")
+        }
+        style={
+          isPublished ? { background: "rgba(16, 185, 129, 0.03)" } : undefined
+        }
       >
         {/* Header */}
         <div className="flex items-start gap-3">
-          <span className={'grid size-10 shrink-0 place-items-center rounded-lg ' + accentClass}>
+          <span
+            className={
+              "grid size-10 shrink-0 place-items-center rounded-lg " +
+              accentClass
+            }
+          >
             <FlaskConical size={18} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className={tagClass}>{draft.courseCode}</span>
               <span className="tag neutral">{draft.label}</span>
-              {isPublished && <span className="tag" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>Published</span>}
-              {!hasOutput && !isPublished && <span className="tag" style={{ background: 'rgba(251,191,36,0.1)', color: '#d97706' }}>Needs output</span>}
+              {isPublished && (
+                <span
+                  className="tag"
+                  style={{
+                    background: "rgba(16,185,129,0.1)",
+                    color: "#10b981",
+                  }}
+                >
+                  Published
+                </span>
+              )}
+              {!hasOutput && !isPublished && (
+                <span
+                  className="tag"
+                  style={{
+                    background: "rgba(251,191,36,0.1)",
+                    color: "#d97706",
+                  }}
+                >
+                  Needs output
+                </span>
+              )}
             </div>
-            <h3 className="mt-2 text-sm font-semibold leading-snug">{draft.title || '(Untitled experiment)'}</h3>
-            {draft.courseCode === 'JAVA' && <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-              {draft.environment === 'visual' ? 'Interactive visual lab · HTML / JavaScript' : needsDesktopJava(draft.id) ? 'Desktop Java required · GUI, JDBC or applet experiment' : 'Built-in Java 8 compiler · runs in the browser without a daily quota'}
-            </p>}
+            <h3 className="mt-2 text-sm font-semibold leading-snug">
+              {draft.title || "(Untitled experiment)"}
+            </h3>
+            {draft.courseCode === "JAVA" && (
+              <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+                {draft.environment === "visual"
+                  ? "Interactive visual lab · HTML / JavaScript"
+                  : needsDesktopJava(draft.id)
+                    ? "Desktop Java required · GUI, JDBC or applet experiment"
+                    : "Built-in Java 8 compiler · runs in the browser without a daily quota"}
+              </p>
+            )}
           </div>
           <div className="flex gap-1 shrink-0">
             <button
               className="icon-button"
               type="button"
-              title={isEditing ? 'Close editor' : 'Edit experiment'}
+              title={isEditing ? "Close editor" : "Edit experiment"}
               disabled={isPublished || isPublishing}
               onClick={() => setEditingId(isEditing ? null : draft.id)}
             >
@@ -405,13 +595,18 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
             <button
               className="icon-button"
               type="button"
-              title={isExpanded ? 'Collapse' : 'Show details'}
+              title={isExpanded ? "Collapse" : "Show details"}
               onClick={() => toggleExpand(draft.id)}
             >
               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
             {onRemove && !isPublished && (
-              <button className="icon-button" type="button" title="Remove" onClick={onRemove}>
+              <button
+                className="icon-button"
+                type="button"
+                title="Remove"
+                onClick={onRemove}
+              >
                 <Trash2 size={14} />
               </button>
             )}
@@ -430,27 +625,65 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         {/* Expanded details */}
         {isExpanded && !isEditing && (
           <div className="space-y-3">
-            <p className="text-xs leading-5" style={{ color: 'var(--muted)' }}>{draft.brief}</p>
+            <p className="text-xs leading-5" style={{ color: "var(--muted)" }}>
+              {draft.brief}
+            </p>
             <ul className="space-y-1">
               {draft.outcomes.map((o, i) => (
-                <li key={i} className="flex items-start gap-2 text-[11px]" style={{ color: 'var(--muted)' }}>
-                  <CheckCircle2 size={12} className="mt-0.5 shrink-0 text-cyan-500" />
+                <li
+                  key={i}
+                  className="flex items-start gap-2 text-[11px]"
+                  style={{ color: "var(--muted)" }}
+                >
+                  <CheckCircle2
+                    size={12}
+                    className="mt-0.5 shrink-0 text-cyan-500"
+                  />
                   {o}
                 </li>
               ))}
             </ul>
             {draft.expectedOutput && (
-              <div className="rounded-md border px-3 py-2" style={{ borderColor: 'var(--line)' }}>
-                <p className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>Expected Output / Observations</p>
-                <pre className="mt-1 whitespace-pre-wrap text-xs leading-5" style={{ color: 'var(--ink)' }}>{draft.expectedOutput}</pre>
+              <div
+                className="rounded-md border px-3 py-2"
+                style={{ borderColor: "var(--line)" }}
+              >
+                <p
+                  className="text-[10px] font-bold uppercase"
+                  style={{ color: "var(--muted)" }}
+                >
+                  Expected Output / Observations
+                </p>
+                <pre
+                  className="mt-1 whitespace-pre-wrap text-xs leading-5"
+                  style={{ color: "var(--ink)" }}
+                >
+                  {draft.expectedOutput}
+                </pre>
               </div>
             )}
           </div>
         )}
 
         {/* Due date + publish */}
-        <div className="mt-auto space-y-3 border-t pt-4" style={{ borderColor: 'var(--line)' }}>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+        {!isPublished && (
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isPublishing}
+            onClick={() => void saveForTester(draft)}
+          >
+            Save draft for tester
+          </button>
+        )}
+        <div
+          className="mt-auto space-y-3 border-t pt-4"
+          style={{ borderColor: "var(--line)" }}
+        >
+          <label
+            className="flex items-center gap-2 text-xs"
+            style={{ color: "var(--muted)" }}
+          >
             <CalendarDays size={14} />
             Deadline
             <input
@@ -458,14 +691,24 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
               disabled={isPublished || isPublishing}
               min={new Date().toISOString().slice(0, 10)}
               value={getDue(draft.id)}
-              onChange={(e) => setDueDates((prev) => ({ ...prev, [draft.id]: e.target.value }))}
+              onChange={(e) =>
+                setDueDates((prev) => ({ ...prev, [draft.id]: e.target.value }))
+              }
               className="ml-auto rounded-md border px-2 py-1 text-xs outline-none focus:border-cyan-400"
-              style={{ borderColor: 'var(--line)', background: 'var(--surface)', color: 'var(--ink)' }}
+              style={{
+                borderColor: "var(--line)",
+                background: "var(--surface)",
+                color: "var(--ink)",
+              }}
             />
           </label>
           <button
-            className={'primary-button w-full' + (isPublished ? ' opacity-70' : '')}
-            disabled={loading || isPublished || isPublishing || !draft.title.trim()}
+            className={
+              "primary-button w-full" + (isPublished ? " opacity-70" : "")
+            }
+            disabled={
+              loading || isPublished || isPublishing || !draft.title.trim()
+            }
             onClick={() => void publishExperiment(draft)}
             type="button"
           >
@@ -477,13 +720,16 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
               <Send size={15} />
             )}
             {isPublishing
-              ? 'Publishing...'
+              ? "Publishing..."
               : isPublished
-                ? 'Published to all students'
-                : 'Publish to all students'}
+                ? "Published to all students"
+                : "Publish to all students"}
           </button>
           {!isPublished && (
-            <p className="text-center text-[11px]" style={{ color: 'var(--muted)' }}>
+            <p
+              className="text-center text-[11px]"
+              style={{ color: "var(--muted)" }}
+            >
               Visible to all students, including future registrants
             </p>
           )}
@@ -500,19 +746,25 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
           <p>Total Experiments</p>
           <strong>{totalCount}</strong>
           <span>Curriculum + custom experiments</span>
-          <span className="metric-icon cyan"><FlaskConical size={18} /></span>
+          <span className="metric-icon cyan">
+            <FlaskConical size={18} />
+          </span>
         </div>
         <div className="metric-panel">
           <p>Published</p>
           <strong>{publishedCount}</strong>
           <span>Visible to all students</span>
-          <span className="metric-icon emerald"><CheckCircle2 size={18} /></span>
+          <span className="metric-icon emerald">
+            <CheckCircle2 size={18} />
+          </span>
         </div>
         <div className="metric-panel">
           <p>Enrolled Students</p>
           <strong>{students.length}</strong>
           <span>Future registrants see published work too</span>
-          <span className="metric-icon amber"><Send size={18} /></span>
+          <span className="metric-icon amber">
+            <Send size={18} />
+          </span>
         </div>
       </section>
 
@@ -532,22 +784,25 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
       {/* Header + Filter + Add */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-cyan-600">Lab Workspace</p>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-cyan-600">
+            Lab Workspace
+          </p>
           <h2 className="mt-1 text-2xl font-semibold">Publish Experiments</h2>
-          <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-            Edit any experiment, set a deadline, and publish � visible to all students, current and future.
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Edit any experiment, set a deadline, and publish � visible to all
+            students, current and future.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="segmented-control">
-            {(['ALL', 'JAVA', 'DBMS'] as const).map((val) => (
+            {(["ALL", "JAVA", "DBMS"] as const).map((val) => (
               <button
                 key={val}
-                className={courseFilter === val ? 'active' : ''}
+                className={courseFilter === val ? "active" : ""}
                 onClick={() => setCourseFilter(val)}
                 type="button"
               >
-                {val === 'ALL' ? 'All' : val}
+                {val === "ALL" ? "All" : val}
               </button>
             ))}
           </div>
@@ -564,12 +819,16 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
       {/* Custom experiments first */}
       {filteredCustom.length > 0 && (
         <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-[.14em]" style={{ color: 'var(--muted)' }}>Custom Experiments</p>
+          <p
+            className="mb-3 text-xs font-bold uppercase tracking-[.14em]"
+            style={{ color: "var(--muted)" }}
+          >
+            Custom Experiments
+          </p>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredCustom.map((draft) =>
-              renderCard(
-                drafts[draft.id] || draft,
-                () => removeCustomExperiment(draft.id),
+              renderCard(drafts[draft.id] || draft, () =>
+                removeCustomExperiment(draft.id),
               ),
             )}
           </div>
@@ -579,7 +838,12 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
       {/* Curriculum experiments */}
       <div>
         {filteredCustom.length > 0 && (
-          <p className="mb-3 text-xs font-bold uppercase tracking-[.14em]" style={{ color: 'var(--muted)' }}>Academic Curriculum</p>
+          <p
+            className="mb-3 text-xs font-bold uppercase tracking-[.14em]"
+            style={{ color: "var(--muted)" }}
+          >
+            Academic Curriculum
+          </p>
         )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {labExperiments.map((item) => renderCard(getDraft(item)))}
