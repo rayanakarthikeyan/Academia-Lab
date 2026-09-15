@@ -231,6 +231,7 @@ export function AssignmentWorkspace({
   });
   const autoSubmit = useCallback(() => submitRef.current(true), []);
   const proctor = useProctoring({
+    completed: locked,
     userId: session.user.id,
     courseId:
       assignmentCourse(assignment) === "JAVA" ? "course-java" : "course-dbms",

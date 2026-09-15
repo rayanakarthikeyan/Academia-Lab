@@ -385,9 +385,10 @@ export default function App() {
     if (view === "java-learn")
       return (
         <ResourceViewer
+          key="java-theory"
           session={session} theme={theme}
           user={session.user}
-          resources={learningResources}
+          resources={visibleResources}
           courseFilter="JAVA"
           onEvent={emitActivity}
         />
@@ -395,6 +396,7 @@ export default function App() {
     if (view === "dbms-learn")
       return (
         <ResourceViewer
+          key="dbms-theory"
           session={session} theme={theme}
           user={session.user}
           resources={visibleResources}
@@ -405,6 +407,7 @@ export default function App() {
     if (view === "coursework")
       return (
         <CourseworkManager
+          key="practice"
           session={session}
           assignments={visibleAssignments}
           submissions={dashboardSubmissions}
@@ -416,6 +419,7 @@ export default function App() {
     if (view === "java-lab")
       return (
         <CourseworkManager
+          key="java-lab"
           session={session}
           assignments={visibleAssignments}
           submissions={dashboardSubmissions}
@@ -428,6 +432,7 @@ export default function App() {
     if (view === "dbms-lab")
       return (
         <CourseworkManager
+          key="dbms-lab"
           session={session}
           assignments={visibleAssignments}
           submissions={dashboardSubmissions}

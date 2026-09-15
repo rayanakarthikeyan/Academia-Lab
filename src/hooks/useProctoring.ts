@@ -10,6 +10,7 @@ interface ProctoringOptions {
   maxViolations?: number;
   onEvent: (event: ActivityLog) => void;
   onAutoSubmit: () => void;
+  completed?: boolean;
 }
 
 export function useProctoring({
@@ -21,6 +22,7 @@ export function useProctoring({
   maxViolations = 2,
   onEvent,
   onAutoSubmit,
+  completed = false,
 }: ProctoringOptions) {
   const activityId = assessmentId || assignmentId || "assessment";
   const storageKey = `exam-${activityId}-${userId}`;
@@ -32,6 +34,34 @@ export function useProctoring({
   const [warning, setWarning] = useState("");
   const lastViolationAt = useRef(0);
   const submittedRef = useRef(false);
+  const deadlineRef = useRef<number | null>(null);
+  const violationsRef = useRef(0);
+  const completedRef = useRef(completed);
+  completedRef.current = completed;
+  const saveRecovery = useCallback(() => {
+    try {
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          deadline: deadlineRef.current,
+          violations: violationsRef.current,
+        }),
+      );
+    } catch {
+      /* Proctoring remains active when recovery storage is unavailable. */
+    }
+  }, [storageKey]);
+  useEffect(() => {
+    if (!completed) return;
+    submittedRef.current = true;
+    setStarted(false);
+    setWarning("");
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      /* Storage may be disabled. */
+    }
+  }, [completed, storageKey]);
 
   const emit = useCallback(
     (kind: ActivityLog["kind"], metadata: Record<string, unknown>) => {
@@ -41,7 +71,7 @@ export function useProctoring({
   );
 
   const submitOnce = useCallback(() => {
-    if (submittedRef.current) return;
+    if (submittedRef.current || completedRef.current) return;
     submittedRef.current = true;
     onAutoSubmit();
   }, [onAutoSubmit]);
@@ -51,24 +81,25 @@ export function useProctoring({
       const now = Date.now();
       if (
         !started ||
+        completedRef.current ||
         submittedRef.current ||
         now - lastViolationAt.current < 1200
       )
         return;
       lastViolationAt.current = now;
-      setViolations((current) => {
-        const next = current + 1;
-        setWarning(`${reason}. Violation ${next} of ${maxViolations}.`);
-        emit("exam_violation", { reason, count: next });
-        if (next >= maxViolations) window.setTimeout(submitOnce, 100);
-        return next;
-      });
+      const next = violationsRef.current + 1;
+      violationsRef.current = next;
+      setViolations(next);
+      setWarning(`${reason}. Violation ${next} of ${maxViolations}.`);
+      emit("exam_violation", { reason, count: next });
+      saveRecovery();
+      if (next >= maxViolations) window.setTimeout(submitOnce, 100);
     },
-    [emit, maxViolations, started, submitOnce],
+    [emit, maxViolations, started, submitOnce, saveRecovery],
   );
 
   useEffect(() => {
-    if (!started) return;
+    if (!started || completed) return;
     const onVisibility = () => {
       if (document.hidden) registerViolation("Tab switch detected");
     };
@@ -85,41 +116,80 @@ export function useProctoring({
       document.removeEventListener("fullscreenchange", onFullscreen);
       window.removeEventListener("blur", onBlur);
     };
-  }, [registerViolation, started]);
+  }, [registerViolation, started, completed]);
 
   useEffect(() => {
-    if (!started || submittedRef.current) return;
+    if (!started || submittedRef.current || completed) return;
+    let previousAutosave = -1;
     const timer = window.setInterval(() => {
-      setRemainingSeconds((current) => {
-        const next = Math.max(0, current - 1);
-        if (next % 60 === 0) {
-          sessionStorage.setItem(
-            storageKey,
-            JSON.stringify({ remainingSeconds: next, violations }),
-          );
-          emit("exam_autosave", { remainingSeconds: next, violations });
-        }
-        if (next === 0) submitOnce();
-        return next;
-      });
+      if (submittedRef.current || completedRef.current) return;
+      const next = Math.max(
+        0,
+        Math.ceil(((deadlineRef.current || Date.now()) - Date.now()) / 1000),
+      );
+      setRemainingSeconds(next);
+      if (next % 60 === 0 && next !== previousAutosave) {
+        previousAutosave = next;
+        saveRecovery();
+        emit("exam_autosave", { remainingSeconds: next, violations });
+      }
+      if (next === 0) submitOnce();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [emit, started, storageKey, submitOnce, violations]);
+  }, [
+    emit,
+    started,
+    storageKey,
+    submitOnce,
+    violations,
+    completed,
+    saveRecovery,
+  ]);
 
   const begin = useCallback(async () => {
-    const saved = sessionStorage.getItem(storageKey);
+    if (completedRef.current || started) return;
+    submittedRef.current = false;
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(storageKey);
+    } catch {
+      /* Start without recovery if storage is unavailable. */
+    }
+    let deadline = Date.now() + durationMinutes * 60000;
     if (saved) {
       try {
         const state = JSON.parse(saved) as {
           remainingSeconds?: number;
           violations?: number;
+          deadline?: number;
         };
-        if (state.remainingSeconds) setRemainingSeconds(state.remainingSeconds);
-        if (state.violations) setViolations(state.violations);
+        if (
+          typeof state.deadline === "number" &&
+          Number.isFinite(state.deadline)
+        )
+          deadline = Math.min(deadline, state.deadline);
+        else if (
+          typeof state.remainingSeconds === "number" &&
+          Number.isFinite(state.remainingSeconds)
+        )
+          deadline = Math.min(
+            deadline,
+            Date.now() + Math.max(0, state.remainingSeconds) * 1000,
+          );
+        if (
+          typeof state.violations === "number" &&
+          Number.isFinite(state.violations)
+        ) {
+          violationsRef.current = Math.max(0, state.violations);
+          setViolations(violationsRef.current);
+        }
       } catch {
         /* Ignore malformed local recovery state. */
       }
     }
+    deadlineRef.current = deadline;
+    setRemainingSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    saveRecovery();
     setStarted(true);
     emit("exam_started", { durationMinutes, fullscreenRequested: true });
     try {
@@ -127,7 +197,17 @@ export function useProctoring({
     } catch {
       setWarning("Fullscreen could not be started. Keep this window focused.");
     }
-  }, [durationMinutes, emit, storageKey]);
+    if (deadline <= Date.now() || violationsRef.current >= maxViolations)
+      submitOnce();
+  }, [
+    durationMinutes,
+    emit,
+    storageKey,
+    started,
+    saveRecovery,
+    maxViolations,
+    submitOnce,
+  ]);
 
   const formattedTime = useMemo(() => {
     const minutes = Math.floor(remainingSeconds / 60)

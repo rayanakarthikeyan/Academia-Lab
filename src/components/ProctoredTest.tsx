@@ -306,6 +306,7 @@ export function ProctoredTest({
     maxViolations: 2,
     onEvent,
     onAutoSubmit: handleAutoSubmit,
+    completed: submitted,
   });
 
   useEffect(() => {

@@ -8,6 +8,7 @@
     "test:java": "node scripts/java-browser.test.mjs",
     "test:features": "node scripts/features-browser.test.mjs",
     "test:ide": "node scripts/ide-telemetry.test.mjs",
+    "test:proctor": "node scripts/proctor-browser.test.mjs",
     "api:local": "node server/local-api.mjs",
     "dev": "node server/dev.mjs",
     "dev:vercel": "vercel dev",
