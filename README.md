@@ -1,5 +1,13 @@
 # AsterLab
 
+## Current syllabus audit and local IDE phase
+
+See [the 31-experiment compatibility audit](docs/syllabus-coverage.md) before promising full syllabus coverage. Original Java GUI/Applet/JDBC programs and database procedures/cursors still need a compatible isolated runtime. This phase installs nothing and deploys nothing.
+
+The workspace now has instructions on the left, code and personal input in the middle, and output/sample checks on the right (stacked on smaller screens). Sample checks compare exact reference output; faculty must provide console output including SQL headings, rather than descriptive observations, for meaningful comparisons. They are client-reported checks, not authoritative grading.
+
+Telemetry is stored in IndexedDB until acknowledged, retried with stable IDs, and checked against the authenticated student's assignment/resource access. Faculty can inspect the latest 100 records for a selected student, including execution errors, source fingerprints and sample-check results. Student sync status shows pending/rejected events and warns when durable browser storage is unavailable. Run `npm run test:ide` with the local preview and Playwright available to verify layout, sample checking and telemetry recovery.
+
 ## Resource practice and visual labs
 
 Faculty can attach up to 20 Java, DBMS (SQL), or HTML/JavaScript practice questions to a resource. Students can filter by language and open questions in the existing coding workspace below the study material, with editable input. These questions are ungraded; drafts remain on the student's device.

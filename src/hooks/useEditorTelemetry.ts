@@ -1,5 +1,5 @@
 import type { editor } from "monaco-editor";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ActivityLog, AttemptEvent } from "../platform/types";
 
 interface EditorTelemetryOptions {
@@ -37,6 +37,7 @@ export function useEditorTelemetry({
   const lastError = useRef("");
   const lastValue = useRef("");
   const characterDelta = useRef(0);
+  const pendingChanges = useRef(0);
 
   const log = useCallback(
     (kind: ActivityLog["kind"], metadata: Record<string, unknown>) => {
@@ -51,24 +52,41 @@ export function useEditorTelemetry({
     [challengeId, courseId, onEvent, userId],
   );
 
+  const flushEdits = useCallback(() => {
+    if (!pendingChanges.current) return;
+    log("editor_change", {
+      changes: pendingChanges.current,
+      characterDelta: characterDelta.current,
+      afterError: Boolean(lastError.current),
+    });
+    pendingChanges.current = 0;
+    characterDelta.current = 0;
+  }, [log]);
+  const flushRef = useRef(flushEdits);
+  flushRef.current = flushEdits;
+  useEffect(() => {
+    const flush = () => flushRef.current();
+    const timer = setInterval(flush, 5000);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+
   const handleChange = useCallback(
     (value: string | undefined) => {
       const next = value || "";
       changes.current += 1;
+      pendingChanges.current += 1;
       const delta = Math.abs(next.length - lastValue.current.length);
       characterDelta.current += delta;
       lastValue.current = next;
-      if (changes.current % 25 === 0) {
-        log("editor_change", {
-          changes: 25,
-          characterDelta: characterDelta.current,
-          afterError: Boolean(lastError.current),
-        });
-        characterDelta.current = 0;
-      }
+      if (pendingChanges.current >= 25) flushEdits();
       if (lastError.current && changes.current % 10 === 0) {
         setTimeline((items) => [
-          ...items,
+          ...items.slice(-199),
           timelineEvent(
             "change",
             "Debugging edit",
@@ -78,11 +96,12 @@ export function useEditorTelemetry({
         ]);
       }
     },
-    [log],
+    [flushEdits],
   );
 
   const handleMount = useCallback(
     (instance: editor.IStandaloneCodeEditor) => {
+      lastValue.current = instance.getValue();
       const node = instance.getDomNode();
       if (!node) return;
       const onPaste = (event: ClipboardEvent) => {
@@ -93,7 +112,7 @@ export function useEditorTelemetry({
           characterCount: length,
         });
         setTimeline((items) => [
-          ...items,
+          ...items.slice(-199),
           timelineEvent(
             "paste",
             "Paste detected",
@@ -113,48 +132,57 @@ export function useEditorTelemetry({
       status: "passed" | "failed" | "error";
       stderr?: string;
       durationMs: number;
+      sourceDigest?: string;
+      inputDigest?: string;
     }) => {
+      flushEdits();
       const error =
-        result.stderr ||
-        (result.status === "failed"
-          ? "Output did not match expected result"
-          : "");
+        result.status === "error" || result.status === "failed"
+          ? result.stderr?.slice(0, 2000) ||
+            (result.status === "failed"
+              ? "Output did not match expected result"
+              : "Execution failed")
+          : "";
       log("code_run", {
         status: result.status,
         durationMs: result.durationMs,
         error,
+        sourceDigest: result.sourceDigest,
+        inputDigest: result.inputDigest,
+        logicCheck: "not-checked",
       });
       if (error) {
         lastError.current = error;
         setTimeline((items) => [
-          ...items,
+          ...items.slice(-199),
           timelineEvent("error", "Run failed", error, "error"),
         ]);
       } else {
         const wasDebugging = Boolean(lastError.current);
         lastError.current = "";
         setTimeline((items) => [
-          ...items,
+          ...items.slice(-199),
           timelineEvent(
             wasDebugging ? "resolved" : "run",
-            wasDebugging ? "Error resolved" : "Tests passed",
+            wasDebugging ? "Error resolved" : "Run completed",
             `${result.durationMs} ms execution`,
             "success",
           ),
         ]);
       }
     },
-    [log],
+    [log, flushEdits],
   );
 
   const recordSubmit = useCallback(() => {
+    flushEdits();
     log("code_submit", {
       changes: changes.current,
       pasteCount: pasteCount.current,
       timelineLength: timeline.length,
     });
     setTimeline((items) => [
-      ...items,
+      ...items.slice(-199),
       timelineEvent(
         "submit",
         "Solution submitted",
@@ -162,7 +190,7 @@ export function useEditorTelemetry({
         "success",
       ),
     ]);
-  }, [log, timeline.length]);
+  }, [log, timeline.length, flushEdits]);
 
   return { timeline, handleChange, handleMount, recordRun, recordSubmit };
 }

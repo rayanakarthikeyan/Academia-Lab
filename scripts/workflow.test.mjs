@@ -114,4 +114,14 @@ test("registration, publication gate, editing, filtering and grading", async () 
   const revised = await call(platform, "PATCH", { id: resource.resource.id, practiceQuestions: [practiceQuestions[1]] }, faculty.token, { entity: "resource" });
   assert.equal(revised.status, 200);
   assert.equal(revised.resource.practice_questions[0].language, "sql");
+  const event = { eventId: "00000000-0000-4000-8000-000000000001", userId: outsider.user.id, assignmentId: labWork.assignment.id, kind: "code_run", metadata: { status: "passed" } };
+  const logged = await call(platform, "POST", event, student.token, { entity: "activity" });
+  assert.equal(logged.status, 201, JSON.stringify(logged));
+  assert.equal(logged.activity.user_id, student.user.id);
+  assert.equal((await call(platform, "POST", event, student.token, { entity: "activity" })).duplicate, true);
+  assert.equal((await call(platform, "POST", { ...event, eventId: "00000000-0000-4000-8000-000000000002" }, outsider.token, { entity: "activity" })).status, 403);
+  const history = await call(platform, "GET", {}, faculty.token, { entity: "activity", detail: "1", userId: student.user.id });
+  assert.equal(history.activity_logs.filter(row => row.id === logged.activity.id).length, 1);
+  assert.ok(history.activity_logs.every(row => row.user_id === student.user.id));
+  assert.equal((await call(platform, "GET", {}, outsider.token, { entity: "activity", detail: "1", userId: student.user.id })).status, 403);
 });

@@ -1,3 +1,4 @@
+import { enqueueActivity } from "./activity-delivery";
 import { runJavaInBrowser, type RunOptions } from "./java-browser";
 import type {
   ActivityLog,
@@ -61,7 +62,9 @@ function mapResource(row: Record<string, unknown>): LearningResource {
     completion: 0,
     activeLearners: 0,
     publishedAt: String(row.created_at || ""),
-    practiceQuestions: Array.isArray(row.practice_questions) ? row.practice_questions : [],
+    practiceQuestions: Array.isArray(row.practice_questions)
+      ? row.practice_questions
+      : [],
     curriculumItemId: String(row.curriculum_item_id || ""),
     courseCode: (row.course_code ||
       (row.course_id === "course-dbms"
@@ -171,20 +174,7 @@ export async function registerStudent(input: {
 }
 
 export async function logActivity(token: string, activity: ActivityLog) {
-  if (!token) return;
-  try {
-    await fetch(`${API_BASE}/api/platform?entity=activity`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(activity),
-      keepalive: true,
-    });
-  } catch {
-    // Telemetry must never interrupt a learner's primary task.
-  }
+  if (token) enqueueActivity(token, activity);
 }
 
 async function platformMutation(
@@ -309,6 +299,18 @@ export async function loadResourceActivity(token: string) {
   }>;
 }
 
+export async function loadStudentActivity(token: string, userId: string) {
+  const data = await parseResponse(
+    await fetch(
+      `${API_BASE}/api/platform?entity=activity&detail=1&userId=${encodeURIComponent(userId)}`,
+      { headers: authHeaders(token) },
+    ),
+  );
+  return (data.activity_logs || []) as Awaited<
+    ReturnType<typeof loadResourceActivity>
+  >;
+}
+
 export async function createAssessment(
   token: string,
   assessment: {
@@ -357,16 +359,27 @@ export async function runCode(
       const worker = new Worker(new URL("./sql.worker.ts", import.meta.url), {
         type: "module",
       });
+      let finished = false;
       const finish = (result: {
         status: "passed" | "error";
         stdout: string;
         stderr: string;
         durationMs: number;
       }) => {
+        if (finished) return;
+        finished = true;
         clearTimeout(timer);
+        options.signal?.removeEventListener("abort", abort);
         worker.terminate();
         resolve(result);
       };
+      const abort = () =>
+        finish({
+          status: "error",
+          stdout: "",
+          stderr: "Execution stopped.",
+          durationMs: 0,
+        });
       const timer = setTimeout(
         () =>
           finish({
@@ -386,7 +399,9 @@ export async function runCode(
           stderr: "Unable to start the SQL engine. Reload and try again.",
           durationMs: 0,
         });
-      worker.postMessage(input.code);
+      options.signal?.addEventListener("abort", abort, { once: true });
+      if (options.signal?.aborted) abort();
+      else worker.postMessage(input.code);
     });
   }
 

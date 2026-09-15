@@ -1,4 +1,5 @@
 import { APP_NAME } from '../platform/branding';
+import { FacultyActivityHistory } from "./FacultyActivityHistory";
 import {
   ArrowLeft,
   ArrowRight,
@@ -537,6 +538,7 @@ export function FacultyAnalytics({
                   </div>
                 ))}
               </dl>
+              <FacultyActivityHistory token={session.token} userId={selected.id} assignments={assignments} />
               <h4 className="mt-6 text-sm font-semibold">
                 Submitted work and drafts
               </h4>

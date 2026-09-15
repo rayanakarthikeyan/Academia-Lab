@@ -6,6 +6,7 @@ import { FacultyLabWorkspace } from "../../src/components/FacultyLabWorkspace";
 import { visualStarter } from "../../src/platform/visual-labs";
 import type { AuthSession, LearningResource } from "../../src/platform/types";
 import "../../src/styles.css";
+import { logActivity } from "../../src/platform/api";
 const session: AuthSession = {
   token: "test",
   user: {
@@ -83,7 +84,7 @@ function Harness() {
       resource={resource}
       session={session}
       theme="light"
-      onEvent={() => undefined}
+      onEvent={event => { if (location.search.includes("telemetry=1")) void logActivity(session.token, event); }}
     />
   );
 }

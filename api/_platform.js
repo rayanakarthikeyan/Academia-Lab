@@ -85,7 +85,18 @@ export default async function handler(req, res) {
       let request = supabase
         .from(table)
         .select("*")
-        .order("created_at", { ascending: false });
+        .order(entity === "activity" ? "occurred_at" : "created_at", {
+          ascending: false,
+        });
+      if (entity === "activity" && query.userId) {
+        if (actor.role === "student" && cleanText(query.userId) !== actor.id)
+          return res
+            .status(403)
+            .json({ error: "You can only read your own activity" });
+        request = request.eq("user_id", cleanText(query.userId));
+      }
+      if (entity === "activity" && query.detail === "1")
+        request = request.limit(100);
       if (entity === "enrollment" && actor.role === "student")
         request = request.eq("user_id", actor.id);
       if (entity === "submission" && actor.role === "student")
@@ -124,6 +135,35 @@ export default async function handler(req, res) {
         if (!activityKinds.has(kind))
           return res.status(400).json({ error: "Invalid activity kind" });
         const assignmentId = cleanText(body.assignmentId) || null;
+        let verifiedCourseId = cleanText(body.courseId) || null;
+        if (JSON.stringify(metadata(body.metadata)).length > 16000)
+          return res
+            .status(413)
+            .json({ error: "Activity metadata is too large" });
+        const eventId = cleanText(body.eventId);
+        if (eventId && !/^[a-f0-9-]{36}$/i.test(eventId))
+          return res.status(400).json({ error: "Invalid activity event id" });
+        if (actor.role === "student" && (assignmentId || body.resourceId)) {
+          const { data: targets, error: targetError } = await supabase
+            .from(assignmentId ? "assignments" : "resources")
+            .select("*")
+            .eq("id", assignmentId || cleanText(body.resourceId))
+            .limit(1);
+          if (targetError) throw targetError;
+          const target = targets?.[0];
+          if (
+            !target ||
+            (!assignmentId && target.is_published === false) ||
+            (target.assigned_user_ids?.length &&
+              !target.assigned_user_ids.includes(actor.id))
+          )
+            return res
+              .status(403)
+              .json({ error: "This activity is not assigned to you" });
+          verifiedCourseId =
+            target.course_id ||
+            (target.course_code === "JAVA" ? "course-java" : "course-dbms");
+        }
         const aggregateKey = [
           actor.id,
           kind,
@@ -133,13 +173,15 @@ export default async function handler(req, res) {
           cleanText(body.courseId),
           now.slice(0, 13),
         ].join("|");
-        const bucketed = bucketedActivityKinds.has(kind);
+        const bucketed = !eventId && bucketedActivityKinds.has(kind);
         const payload = {
-          id: bucketed
-            ? `log-bucket-${createHash("sha256").update(aggregateKey).digest("hex").slice(0, 32)}`
-            : `log-${randomUUID()}`,
+          id: eventId
+            ? `log-${actor.id}-${eventId}`
+            : bucketed
+              ? `log-bucket-${createHash("sha256").update(aggregateKey).digest("hex").slice(0, 32)}`
+              : `log-${randomUUID()}`,
           user_id: actor.id,
-          course_id: cleanText(body.courseId) || null,
+          course_id: verifiedCourseId,
           resource_id: cleanText(body.resourceId) || null,
           assessment_id: cleanText(body.assessmentId) || null,
           assignment_id: assignmentId,
@@ -152,6 +194,23 @@ export default async function handler(req, res) {
           metadata: metadata(body.metadata),
           occurred_at: now,
         };
+        if (eventId) {
+          payload.metadata = {
+            ...payload.metadata,
+            clientOccurredAt: cleanText(body.occurredAt).slice(0, 40),
+            evidenceSource: "student-client",
+          };
+          const { data: duplicate, error: duplicateError } = await supabase
+            .from(table)
+            .select("id")
+            .eq("id", payload.id)
+            .limit(1);
+          if (duplicateError) throw duplicateError;
+          if (duplicate?.length)
+            return res
+              .status(200)
+              .json({ activity: duplicate[0], duplicate: true });
+        }
         if (bucketed) {
           const { data: existingRows, error: readError } = await supabase
             .from(table)
@@ -195,6 +254,8 @@ export default async function handler(req, res) {
           .insert(payload)
           .select("*")
           .single();
+        if (error && eventId && error.code === "23505")
+          return res.status(200).json({ duplicate: true });
         if (error) throw error;
         return res.status(201).json({ activity: data, aggregated: bucketed });
       }
