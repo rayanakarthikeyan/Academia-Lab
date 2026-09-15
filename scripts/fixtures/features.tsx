@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
 import { ResourcePractice } from "../../src/components/ResourcePractice";
+import { AssignmentWorkspace } from "../../src/components/CourseworkManager";
 import { FacultyResourceManager } from "../../src/components/FacultyResourceManager";
 import { FacultyLabWorkspace } from "../../src/components/FacultyLabWorkspace";
 import { visualStarter } from "../../src/platform/visual-labs";
@@ -65,6 +66,40 @@ const resource: LearningResource = {
 };
 function Harness() {
   const [resources, setResources] = useState<LearningResource[]>([]);
+  if (location.hash === "#assigned-lab")
+    return (
+      <AssignmentWorkspace
+        session={session}
+        theme="light"
+        onEvent={(e) => void logActivity(session.token, e)}
+        onBack={() => undefined}
+        onSaved={() => undefined}
+        assignment={{
+          id: "assigned-java-16",
+          curriculum_item_id: "java-lab-16",
+          title: "Assigned traffic signal experiment",
+          description: "Select the signal and explain your observations.",
+          course_code: "JAVA",
+          unit_number: 4,
+          starter_code: "// Explain the traffic signal behavior",
+          assignment_type: "lab",
+          work_mode: "ide",
+          execution_environment: "external",
+          subject_id: "java-subject",
+          due_date: "2099-12-31",
+          max_marks: 10,
+          assigned_user_ids: [],
+          assigned: 1,
+          submitted: 0,
+          pending: 1,
+          reviewed: 0,
+          questions: [],
+          hints: [],
+          test_cases: [],
+          duration_minutes: 60,
+        }}
+      />
+    );
   if (location.hash === "#faculty")
     return (
       <FacultyResourceManager
@@ -84,7 +119,10 @@ function Harness() {
       resource={resource}
       session={session}
       theme="light"
-      onEvent={event => { if (location.search.includes("telemetry=1")) void logActivity(session.token, event); }}
+      onEvent={(event) => {
+        if (location.search.includes("telemetry=1"))
+          void logActivity(session.token, event);
+      }}
     />
   );
 }

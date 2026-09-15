@@ -513,6 +513,25 @@ export default async function handler(req, res) {
             .json({ error: "The assignment deadline has passed" });
       }
       const submittedMetadata = metadata(body.metadata);
+      const interactiveLab =
+        submissionAssignment?.assignment_type !== "assessment" &&
+        /^(java-lab-(1|10|16|17|18|19|20|21)|dbms-lab-(1|3))$/.test(
+          submissionAssignment?.curriculum_item_id || "",
+        );
+      if (
+        interactiveLab &&
+        cleanText(body.status) === "submitted" &&
+        (!cleanText(submittedMetadata.lab_report) ||
+          !Object.keys(metadata(submittedMetadata.lab_evidence)).length)
+      )
+        return res
+          .status(400)
+          .json({
+            error:
+              "Complete the interactive lab and provide your observations before submitting",
+          });
+      if (kind === "submission")
+        submittedMetadata.interactive_lab = interactiveLab;
       let serverScore =
         kind === "submission" &&
         submissionAssignment?.work_mode === "mcq" &&
@@ -540,6 +559,7 @@ export default async function handler(req, res) {
         kind === "submission" &&
         finalStatus === "submitted" &&
         submissionAssignment?.work_mode !== "mcq" &&
+        !interactiveLab &&
         process.env.GEMINI_API_KEY
       ) {
         try {

@@ -54,6 +54,7 @@ export default async function handler(req, res) {
     // 2. Iterate and evaluate each submission
     for (const submission of pendingSubmissions) {
       if (submission.metadata?.isTester === true) continue;
+      if (submission.metadata?.interactive_lab === true) continue;
       const assignment = submission.assignments;
       if (!assignment) continue;
 
@@ -132,13 +133,11 @@ Respond with ONLY a valid JSON object matching this schema:
     });
   } catch (err) {
     console.error("Bulk auto-grade error:", err);
-    return res
-      .status(err.status || err.statusCode || 500)
-      .json({
-        error:
-          err.status === 403 || err.statusCode === 403
-            ? "Faculty access required"
-            : "Internal server error",
-      });
+    return res.status(err.status || err.statusCode || 500).json({
+      error:
+        err.status === 403 || err.statusCode === 403
+          ? "Faculty access required"
+          : "Internal server error",
+    });
   }
 }

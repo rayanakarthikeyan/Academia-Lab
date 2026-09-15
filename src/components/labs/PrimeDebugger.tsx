@@ -131,6 +131,9 @@ export function PrimeDebugger({
         lines.join("\n").trim() + (result.stderr ? "\n" + result.stderr : ""),
       );
       onEvent("debug_record", {
+        source: code.slice(0, 5000),
+        input: input.slice(0, 1000),
+        output: result.stdout.slice(0, 4000),
         status: result.status,
         snapshots: snapshots.length,
         durationMs: result.durationMs,

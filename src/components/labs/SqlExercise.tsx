@@ -62,6 +62,8 @@ export function SqlExercise({
               );
               setOutput(result.stdout + "\n" + result.stderr);
               onEvent("design_sql_run", {
+                source: sql.slice(0, 5000),
+                output: result.stdout.slice(0, 4000),
                 status: result.status,
                 runtime: "postgres",
                 durationMs: result.durationMs,

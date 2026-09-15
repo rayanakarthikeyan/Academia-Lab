@@ -601,6 +601,20 @@ export function FacultyAnalytics({
                       {record.metadata.output}
                     </pre>
                   )}
+                  {typeof record.metadata.lab_report === "string" && (
+                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                      Lab observations: {record.metadata.lab_report}
+                    </p>
+                  )}
+                  {record.metadata.lab_evidence &&
+                  typeof record.metadata.lab_evidence === "object" ? (
+                    <details className="mt-3">
+                      <summary>Submitted interactive lab evidence</summary>
+                      <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs">
+                        {JSON.stringify(record.metadata.lab_evidence, null, 2)}
+                      </pre>
+                    </details>
+                  ) : null}
                 </details>
               ))}
               <h4 className="mt-6 text-sm font-semibold">

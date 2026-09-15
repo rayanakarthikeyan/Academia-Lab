@@ -170,6 +170,29 @@ export function AssignmentWorkspace({
   const isMcq = mode === "mcq";
   const language = assignmentCourse(assignment) === "JAVA" ? "java" : "sql";
   const localKey = `coursework-${assignment.id}-${session.user.id}`;
+  const interactive =
+    type !== "assessment" && hasLearningTool(assignment.curriculum_item_id);
+  const [labReport, setLabReport] = useState(() =>
+    String(
+      submission?.metadata?.lab_report ||
+        readLocalDraft(`${localKey}-lab-report`) ||
+        "",
+    ),
+  );
+  const [labEvidence, setLabEvidence] = useState<Record<string, unknown>>(
+    () => {
+      if (
+        submission?.metadata?.lab_evidence &&
+        typeof submission.metadata.lab_evidence === "object"
+      )
+        return submission.metadata.lab_evidence as Record<string, unknown>;
+      try {
+        return JSON.parse(readLocalDraft(`${localKey}-lab-evidence`) || "{}");
+      } catch {
+        return {};
+      }
+    },
+  );
   const [sqlEngine, setSqlEngine] = useState<"sqlite" | "postgres">(() =>
     readLocalDraft(`${localKey}-engine`) === "postgres" ? "postgres" : "sqlite",
   );
@@ -271,6 +294,11 @@ export function AssignmentWorkspace({
       try {
         localStorage.setItem(localKey, isMcq ? JSON.stringify(answers) : body);
         localStorage.setItem(`${localKey}-stdin`, stdin);
+        localStorage.setItem(`${localKey}-lab-report`, labReport);
+        localStorage.setItem(
+          `${localKey}-lab-evidence`,
+          JSON.stringify(labEvidence),
+        );
       } catch {
         setError(
           "Your browser could not save the local draft. Keep this page open and save your work before leaving.",
@@ -278,7 +306,7 @@ export function AssignmentWorkspace({
       }
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [answers, body, stdin, isMcq, localKey, locked]);
+  }, [answers, body, stdin, isMcq, localKey, locked, labReport, labEvidence]);
   const persist = async (status: "draft" | "submitted", automatic = false) => {
     if (practiceOnly) {
       try {
@@ -297,6 +325,16 @@ export function AssignmentWorkspace({
           (question) => answers[question.id] === undefined,
         ).length
       : 0;
+    if (
+      status === "submitted" &&
+      interactive &&
+      (!labReport.trim() || !Object.keys(labEvidence).length)
+    ) {
+      setError(
+        "Complete the interactive lab and write your observations before submitting.",
+      );
+      return;
+    }
     if (status === "submitted" && unanswered > 0 && !automatic) {
       setError(
         `Answer all ${assignment.questions.length} questions before submitting.`,
@@ -306,6 +344,7 @@ export function AssignmentWorkspace({
     const response = isMcq
       ? JSON.stringify(answers)
       : body.trim() ||
+        (interactive ? labReport.trim() : "") ||
         (automatic
           ? "No response was entered before automatic submission."
           : "");
@@ -323,6 +362,9 @@ export function AssignmentWorkspace({
         status,
         metadata: {
           assignment_type: type,
+          interactive_lab: interactive,
+          lab_report: interactive ? labReport : undefined,
+          lab_evidence: interactive ? labEvidence : undefined,
           work_mode: mode,
           answers: isMcq ? answers : undefined,
           language: isCoding ? (visual ? "html" : language) : null,
@@ -577,15 +619,24 @@ export function AssignmentWorkspace({
       )}
       {type !== "assessment" &&
         hasLearningTool(assignment.curriculum_item_id) && (
-          <details className="panel p-4">
+          <details open className="panel p-4">
             <summary className="font-semibold cursor-pointer">
-              Open interactive learning activity
+              Interactive lab experiment
             </summary>
-            <div className="mt-4">
+            <fieldset disabled={locked} className="mt-4 min-w-0">
               <LearningTools
                 id={assignment.curriculum_item_id}
                 theme={theme}
-                onEvent={(action, evidence = {}) =>
+                onEvent={(action, evidence = {}) => {
+                  if (locked) return;
+                  if (JSON.stringify(evidence).length <= 14000)
+                    setLabEvidence((prev) => ({
+                      ...prev,
+                      [action]: {
+                        ...evidence,
+                        recordedAt: new Date().toISOString(),
+                      },
+                    }));
                   onEvent({
                     userId: session.user.id,
                     assignmentId: assignment.id,
@@ -596,10 +647,26 @@ export function AssignmentWorkspace({
                       action,
                       curriculumItemId: assignment.curriculum_item_id,
                     },
-                  })
-                }
+                  });
+                }}
               />
-            </div>
+              <label className="block mt-4 font-semibold">
+                Your observations and explanation
+                <textarea
+                  aria-label="Lab observations and explanation"
+                  className="input-field"
+                  rows={5}
+                  maxLength={6000}
+                  value={labReport}
+                  onChange={(e) => setLabReport(e.target.value)}
+                  placeholder="Explain your approach, inputs, results and what you learned."
+                />
+              </label>
+              <p className="mt-2 text-xs">
+                Your activity evidence and explanation are included when you
+                save or submit this experiment. Faculty reviews the work.
+              </p>
+            </fieldset>
           </details>
         )}
       {notice && (
@@ -642,7 +709,9 @@ export function AssignmentWorkspace({
           )}
           {external && (
             <p className="mt-4 text-xs text-amber-600">
-              External lab environment / faculty-reviewed results
+              {interactive
+                ? "Complete the built-in simulation above and submit your explanation below. Original Swing/Applet source is for reference."
+                : "External lab environment / faculty-reviewed results"}
             </p>
           )}
           {assignment.curriculum_item_id === "java-lab-15" && !visual && (
@@ -906,7 +975,11 @@ export function AssignmentWorkspace({
                 ) : (
                   <Play size={16} />
                 )}
-                {external ? "External lab runtime" : "Run"}
+                {external
+                  ? interactive
+                    ? "Use simulation above"
+                    : "External lab runtime"
+                  : "Run"}
               </button>
             )}
             <button

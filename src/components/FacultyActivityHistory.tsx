@@ -97,7 +97,7 @@ export function FacultyActivityHistory({
               <div className="mt-2 space-y-1">
                 <p>
                   Lab:{" "}
-                  {String(event.metadata.curriculumItemId || "Learning studio")}
+                  {String(event.metadata.curriculumItemId || "Lab experiment")}
                 </p>
                 <p>Action: {String(event.metadata.action || "Interaction")}</p>
                 {typeof event.metadata.matched === "boolean" && (

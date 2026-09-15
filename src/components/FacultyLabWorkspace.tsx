@@ -1,4 +1,5 @@
 import { visualStarter } from "../platform/visual-labs";
+import { LearningTools, hasLearningTool } from "./labs/LearningTools";
 import { draftRequest } from "../platform/lab-drafts";
 import {
   CalendarDays,
@@ -576,9 +577,11 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
               <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
                 {draft.environment === "visual"
                   ? "Interactive visual lab · HTML / JavaScript"
-                  : needsDesktopJava(draft.id)
-                    ? "Desktop Java required · GUI, JDBC or applet experiment"
-                    : "Built-in Java 8 compiler · runs in the browser without a daily quota"}
+                  : hasLearningTool(draft.id)
+                    ? "Built-in interactive lab · students complete and submit it after assignment"
+                    : needsDesktopJava(draft.id)
+                      ? "Desktop Java required · GUI, JDBC or applet experiment"
+                      : "Built-in Java 8 compiler · runs in the browser without a daily quota"}
               </p>
             )}
           </div>
@@ -614,6 +617,22 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         </div>
 
         {/* Edit panel */}
+        {hasLearningTool(draft.id) && (
+          <details className="panel p-3">
+            <summary className="cursor-pointer font-semibold">
+              Preview interactive lab
+            </summary>
+            <p className="my-2 text-xs">
+              Faculty preview. Students receive this activity with the assigned
+              experiment.
+            </p>
+            <LearningTools
+              id={draft.id}
+              theme="light"
+              onEvent={() => undefined}
+            />
+          </details>
+        )}
         {isEditing && (
           <EditPanel
             draft={draft}

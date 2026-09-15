@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthScreen } from "./components/AuthScreen";
-import { LearningStudio } from "./components/LearningStudio";
+import { TesterDrafts } from "./components/TesterDrafts";
 import { CourseworkManager } from "./components/CourseworkManager";
 import { FacultyAnalytics } from "./components/FacultyAnalytics";
 import { FacultyLabWorkspace } from "./components/FacultyLabWorkspace";
@@ -54,7 +54,7 @@ import type {
 } from "./platform/types";
 
 type ViewId =
-  | "learning-studio"
+  | "faculty-drafts"
   | "dashboard"
   | "admin-dashboard"
   | "java-learn"
@@ -76,7 +76,6 @@ type NavItem =
 // studentNavigation is built dynamically in App based on visible courses
 
 const facultyNavigation: NavItem[] = [
-  { id: "learning-studio", label: "Learning studio", icon: FlaskConical },
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { isHeader: true, label: "Course Management" },
   { id: "enrollment", label: "Enrollment management", icon: Users },
@@ -94,9 +93,9 @@ const adminNavigation: NavItem[] = [
 
 function pageTitle(view: ViewId) {
   const titles: Record<ViewId, [string, string]> = {
-    "learning-studio": [
-      "Learning studio",
-      "Explore, predict, run and explain syllabus experiments.",
+    "faculty-drafts": [
+      "Faculty draft experiments",
+      "Preview saved experiments before they are assigned to students.",
     ],
     dashboard: [
       "Learning command center",
@@ -310,9 +309,14 @@ export default function App() {
 
   const studentNavigation = useMemo(() => {
     const nav: NavItem[] = [
-      { id: "learning-studio", label: "Learning studio", icon: FlaskConical },
       { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     ];
+    if (session?.user.isTester)
+      nav.push({
+        id: "faculty-drafts",
+        label: "Faculty drafts",
+        icon: FlaskConical,
+      });
     if (visibleCourses.some((c) => c.code === "JAVA")) {
       nav.push(
         { isHeader: true, label: "OOP Java" },
@@ -335,7 +339,7 @@ export default function App() {
       );
     }
     return nav;
-  }, [visibleCourses]);
+  }, [visibleCourses, session?.user.isTester]);
 
   const navigation =
     session?.user.role === "admin"
@@ -364,13 +368,9 @@ export default function App() {
 
   const content = useMemo(() => {
     if (!session) return null;
-    if (view === "learning-studio")
+    if (view === "faculty-drafts" && session.user.isTester)
       return (
-        <LearningStudio
-          session={session}
-          theme={theme}
-          onEvent={emitActivity}
-        />
+        <TesterDrafts session={session} theme={theme} onEvent={emitActivity} />
       );
     if (view === "admin-dashboard")
       return <SuperAdminDashboard token={session.token} />;

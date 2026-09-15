@@ -187,6 +187,7 @@ export function NormalizationLab({ onEvent }: { onEvent: LabEvent }) {
                 onEvent("normalization_design", {
                   normalized,
                   rowCount: rows.length,
+                  rows,
                   status: "passed",
                 });
               } catch (error) {

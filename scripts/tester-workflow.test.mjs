@@ -230,3 +230,49 @@ assert.equal(
 console.log(
   "PASS private draft create/update/delete, tester read-only preview, student denial and generic API isolation",
 );
+await db
+  .from("assignments")
+  .insert({
+    id: "interactive-assigned",
+    title: "Signal lab",
+    curriculum_item_id: "java-lab-16",
+    assignment_type: "lab",
+    work_mode: "ide",
+    due_date: "2099-12-31",
+    max_marks: 10,
+    assigned_user_ids: [],
+  });
+const attempt = {
+  kind: "submission",
+  assignmentId: "interactive-assigned",
+  title: "Signal response",
+  body: "Signal logic",
+  status: "submitted",
+  metadata: {},
+};
+assert.equal(
+  (await call(learning, "POST", attempt, student.token)).status,
+  400,
+);
+const completed = await call(
+  learning,
+  "POST",
+  {
+    ...attempt,
+    metadata: {
+      lab_report: "Green permits travel when clear.",
+      lab_evidence: { signal_selected: { color: "green" } },
+    },
+  },
+  student.token,
+);
+assert.equal(completed.status, 201);
+assert.equal(completed.record.metadata.interactive_lab, true);
+assert.equal(completed.record.status, "submitted");
+assert.equal(
+  (await call(learning, "POST", attempt, student.token)).status,
+  409,
+);
+console.log(
+  "PASS server requires interactive report/evidence and locks final submissions",
+);

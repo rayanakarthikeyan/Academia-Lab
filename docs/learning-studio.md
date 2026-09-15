@@ -1,6 +1,8 @@
 # Learning studio and testing accounts
 
-The Learning studio navigation entry gives students and faculty access to ungraded practice for all 31 syllabus labs. Specialized tools also appear in matching faculty assignments under “Open interactive learning activity”; assessments do not expose these helpers. Graded submissions remain in faculty assignment workflows.
+The standalone Learning studio page has been removed from the application. All 31 experiments live in faculty drafts. Faculty previews the specialized tools in the lab workspace and publishes experiments when ready. Students access the interactive tool inside the assigned lab, complete it, write observations, and save or submit under that assignment. Assessments do not expose these helpers. Testers preview unpublished work through the separate Faculty drafts entry.
+
+Interactive submissions store the student's report and the most recent evidence for each action, including model data, predictions and bounded source/output snapshots where available. Faculty reviews this evidence; automatic bulk grading skips these interactive submissions. The server rejects final submissions lacking report/evidence, and submitted controls are locked. Local reports/evidence are retained for reload and included in server draft saves; the live simulator state itself remains session-local.
 
 ## Java debugger
 
