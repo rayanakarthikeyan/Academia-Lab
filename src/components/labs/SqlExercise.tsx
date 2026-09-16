@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { runCode } from "../../platform/api";
 import { sourceDigest } from "../../platform/run-evidence";
 import type { LabEvent } from "./lab-utils";
+import Editor from "../CodeEditor";
 export function SqlExercise({
   initialSql,
   onEvent,
@@ -34,13 +35,12 @@ export function SqlExercise({
       >
         Regenerate SQL from design
       </button>
-      <textarea
-        aria-label="Design SQL"
-        className="input-field font-mono min-h-64"
+      <Editor
+        height="320px"
+        language="sql"
         value={sql}
-        disabled={busy}
-        maxLength={100000}
-        onChange={(e) => setSql(e.target.value)}
+        options={{ readOnly: busy, ariaLabel: "Design SQL" }}
+        onChange={(value) => setSql((value || "").slice(0, 100000))}
       />
       <div className="flex flex-wrap gap-2 mt-3">
         <button
