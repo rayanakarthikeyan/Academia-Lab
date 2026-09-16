@@ -854,6 +854,11 @@ export function AssignmentWorkspace({
           ) : isCoding ? (
             <Editor
               height="430px"
+              runDiagnostics={
+                lastRun
+                  ? { source: lastRun.code, text: output.stderr }
+                  : undefined
+              }
               language={visual ? "html" : language}
               onChange={(value) => {
                 setBody(value || "");

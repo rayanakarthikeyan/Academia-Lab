@@ -153,6 +153,10 @@ self.onmessage = async ({ data }) => {
       result("error");
       return;
     }
+    if (data.compileOnly) {
+      result("passed");
+      return;
+    }
     self.postMessage({ phase: "Running Java…" });
     const exit = await run([
       "-Djava.awt.headless=true",

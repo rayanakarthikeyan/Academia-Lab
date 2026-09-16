@@ -51,6 +51,10 @@ export function PrimeDebugger({
   const [position, setPosition] = useState(0);
   const [breakpoint, setBreakpoint] = useState("composite");
   const [output, setOutput] = useState("");
+  const [diagnostics, setDiagnostics] = useState<{
+    source: string;
+    text: string;
+  }>();
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState("");
   const [recorded, setRecorded] = useState("");
@@ -127,6 +131,7 @@ export function PrimeDebugger({
       setTrace(snapshots.length ? snapshots : [...liveTrace.current]);
       setPosition(0);
       setRecorded(code + "\0" + input);
+      setDiagnostics({ source: code, text: result.stderr });
       setOutput(
         lines.join("\n").trim() + (result.stderr ? "\n" + result.stderr : ""),
       );
@@ -174,6 +179,8 @@ export function PrimeDebugger({
         <div className="min-w-0">
           <Editor
             height="440px"
+            javaDebug
+            runDiagnostics={diagnostics}
             language="java"
             value={code}
             onChange={(value) => setCode(value || "")}

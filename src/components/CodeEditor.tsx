@@ -1,10 +1,20 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { EditorProps } from "@monaco-editor/react";
 import type { editor, IDisposable } from "monaco-editor";
+import { EditorProblems } from "./EditorProblems";
 
 const LocalCodeEditor = lazy(() => import("./LocalCodeEditor"));
 
-export default function CodeEditor(props: EditorProps) {
+export default function CodeEditor({
+  runDiagnostics,
+  javaDebug,
+  ...props
+}: EditorProps & {
+  runDiagnostics?: { source: string; text: string };
+  javaDebug?: boolean;
+}) {
+  const [api, setApi] = useState<typeof import("monaco-editor") | null>(null);
+  const [revision, setRevision] = useState(0);
   const instance = useRef<editor.IStandaloneCodeEditor | null>(null);
   const listener = useRef<IDisposable | null>(null);
   const [position, setPosition] = useState({ lineNumber: 1, column: 1 });
@@ -50,6 +60,10 @@ export default function CodeEditor(props: EditorProps) {
       >
         <LocalCodeEditor
           {...props}
+          onChange={(value, event) => {
+            setRevision((n) => n + 1);
+            props.onChange?.(value, event);
+          }}
           theme={
             props.theme ||
             (document.documentElement.classList.contains("dark")
@@ -80,6 +94,7 @@ export default function CodeEditor(props: EditorProps) {
           }}
           onMount={(editor, monaco) => {
             instance.current = editor;
+            setApi(monaco);
             listener.current?.dispose();
             listener.current = editor.onDidChangeCursorPosition((e) =>
               setPosition(e.position),
@@ -100,6 +115,16 @@ export default function CodeEditor(props: EditorProps) {
           {props.options?.readOnly ? "Read only" : "Editable"}
         </span>
       </div>
+      <EditorProblems
+        source={String(props.value ?? props.defaultValue ?? "")}
+        language={language}
+        revision={revision}
+        readOnly={props.options?.readOnly}
+        debug={javaDebug}
+        instance={instance.current}
+        monaco={api}
+        runDiagnostics={runDiagnostics}
+      />
     </section>
   );
 }

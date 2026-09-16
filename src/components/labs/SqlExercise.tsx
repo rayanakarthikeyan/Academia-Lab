@@ -15,6 +15,10 @@ export function SqlExercise({
   const [busy, setBusy] = useState(false),
     [phase, setPhase] = useState("");
   const controller = useRef<AbortController | null>(null);
+  const [diagnostics, setDiagnostics] = useState<{
+    source: string;
+    text: string;
+  }>();
   useEffect(() => () => controller.current?.abort(), []);
   return (
     <details className="mt-4 rounded-xl border border-[var(--line)] p-4" open>
@@ -37,6 +41,7 @@ export function SqlExercise({
       </button>
       <Editor
         height="320px"
+        runDiagnostics={diagnostics}
         language="sql"
         value={sql}
         options={{ readOnly: busy, ariaLabel: "Design SQL" }}
@@ -61,6 +66,7 @@ export function SqlExercise({
                 { signal: controller.current.signal, onProgress: setPhase },
               );
               setOutput(result.stdout + "\n" + result.stderr);
+              setDiagnostics({ source: sql, text: result.stderr });
               onEvent("design_sql_run", {
                 source: sql.slice(0, 5000),
                 output: result.stdout.slice(0, 4000),

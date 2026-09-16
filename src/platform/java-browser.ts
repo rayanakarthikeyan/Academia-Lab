@@ -12,6 +12,7 @@ export interface RuntimeFile {
 }
 
 export interface RunOptions {
+  compileOnly?: boolean;
   debug?: boolean;
   onDebugSnapshot?: (
     snapshot: {
@@ -218,6 +219,7 @@ export function runJavaInBrowser(
               stdin,
               files: options.files || [],
               debug: options.debug === true,
+              compileOnly: options.compileOnly === true,
               assets: copy,
             },
             "*",
