@@ -196,6 +196,7 @@ export interface AssignmentSubject {
 }
 
 export interface AssignmentRecord {
+  interactive_enabled?: boolean;
   id: string;
   title: string;
   subject_id: string;

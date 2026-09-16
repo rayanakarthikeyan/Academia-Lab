@@ -16,7 +16,11 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createCourseworkAssignment, loadCoursework } from "../platform/api";
+import {
+  createCourseworkAssignment,
+  loadCoursework,
+  updateCourseworkAssignment,
+} from "../platform/api";
 import { curriculumCatalog } from "../platform/curriculum";
 import { needsDesktopJava } from "../platform/java-support";
 import type {
@@ -240,6 +244,9 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
   const [dueDates, setDueDates] = useState<Record<string, string>>({});
   const [publishing, setPublishing] = useState<Record<string, boolean>>({});
   const [published, setPublished] = useState<Record<string, boolean>>({});
+  const [publishedLabs, setPublishedLabs] = useState<
+    Record<string, AssignmentRecord>
+  >({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, ExperimentDraft>>({});
   const [courseFilter, setCourseFilter] = useState<"ALL" | "JAVA" | "DBMS">(
@@ -276,12 +283,15 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         setSubjects(data.subjects);
         setStudents(data.students);
         const pub: Record<string, boolean> = {};
+        const publishedRows: Record<string, AssignmentRecord> = {};
         data.assignments
           .filter((a: AssignmentRecord) => a.assignment_type === "lab")
           .forEach((a: AssignmentRecord) => {
             pub[a.curriculum_item_id] = true;
+            publishedRows[a.curriculum_item_id || a.id] = a;
           });
         setPublished(pub);
+        setPublishedLabs(publishedRows);
         // pre-populate drafts from catalog
         const d: Record<string, ExperimentDraft> = {};
         curriculumCatalog
@@ -391,7 +401,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
           "No matching subject exists for this course. Add the Java or DBMS subject before publishing.",
         );
       // Empty assigned_user_ids = publish to ALL students (current + future)
-      await createCourseworkAssignment(session.token, {
+      const created = await createCourseworkAssignment(session.token, {
         title: draft.title,
         subjectId,
         dueDate: getDue(draft.id),
@@ -422,6 +432,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
         questions: [],
       });
       setPublished((prev) => ({ ...prev, [draft.id]: true }));
+      setPublishedLabs((prev) => ({ ...prev, [draft.id]: created }));
       setEditingId(null);
       setNotice(
         draft.label +
@@ -448,6 +459,32 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
     setCustomExperiments((prev) => [...prev, custom]);
     setDrafts((prev) => ({ ...prev, [custom.id]: custom }));
     setEditingId(custom.id);
+  };
+
+  const toggleInteractive = async (id: string) => {
+    const lab = publishedLabs[id];
+    if (!lab) return;
+    setError("");
+    setPublishing((prev) => ({ ...prev, [id]: true }));
+    try {
+      const updated = await updateCourseworkAssignment(session.token, lab.id, {
+        interactiveEnabled: !lab.interactive_enabled,
+      });
+      setPublishedLabs((prev) => ({ ...prev, [id]: updated }));
+      setNotice(
+        updated.interactive_enabled
+          ? "Interactive activity enabled after the manual lab."
+          : "Interactive activity disabled for students.",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not change interactive availability",
+      );
+    } finally {
+      setPublishing((prev) => ({ ...prev, [id]: false }));
+    }
   };
 
   const removeCustomExperiment = async (id: string) => {
@@ -578,7 +615,7 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
                 {draft.environment === "visual"
                   ? "Interactive visual lab · HTML / JavaScript"
                   : hasLearningTool(draft.id)
-                    ? "Built-in interactive lab · students complete and submit it after assignment"
+                    ? "Optional interactive lab · enable for students after the manual lab"
                     : needsDesktopJava(draft.id)
                       ? "Desktop Java required · GUI, JDBC or applet experiment"
                       : "Built-in Java 8 compiler · runs in the browser without a daily quota"}
@@ -618,13 +655,39 @@ export function FacultyLabWorkspace({ session }: { session: AuthSession }) {
 
         {/* Edit panel */}
         {hasLearningTool(draft.id) && (
+          <div className="rounded-lg border border-[var(--line)] p-3 text-xs space-y-2">
+            <p>
+              {publishedLabs[draft.id]?.interactive_enabled
+                ? "Interactive activity is enabled for students."
+                : "Interactive activity is disabled for students. Complete the manual lab before enabling it."}
+            </p>
+            {isPublished ? (
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isPublishing}
+                onClick={() => void toggleInteractive(draft.id)}
+              >
+                {publishedLabs[draft.id]?.interactive_enabled
+                  ? "Disable interactive activity"
+                  : "Manual lab completed — enable interactive activity"}
+              </button>
+            ) : (
+              <p>
+                The enable control becomes available after you publish this
+                experiment.
+              </p>
+            )}
+          </div>
+        )}
+        {hasLearningTool(draft.id) && (
           <details className="panel p-3">
             <summary className="cursor-pointer font-semibold">
               Preview interactive lab
             </summary>
             <p className="my-2 text-xs">
-              Faculty preview. Students receive this activity with the assigned
-              experiment.
+              Faculty preview only. Students receive this activity after you
+              explicitly enable it following the manual lab.
             </p>
             <LearningTools
               id={draft.id}

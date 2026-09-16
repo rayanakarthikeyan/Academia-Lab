@@ -170,8 +170,55 @@ export function AssignmentWorkspace({
   const isMcq = mode === "mcq";
   const language = assignmentCourse(assignment) === "JAVA" ? "java" : "sql";
   const localKey = `coursework-${assignment.id}-${session.user.id}`;
+  const [interactiveEnabled, setInteractiveEnabled] = useState(
+    assignment.interactive_enabled === true,
+  );
+  useEffect(
+    () => setInteractiveEnabled(assignment.interactive_enabled === true),
+    [assignment.interactive_enabled],
+  );
+  useEffect(() => {
+    if (practiceOnly || !hasLearningTool(assignment.curriculum_item_id)) return;
+    let active = true;
+    let pending = false;
+    const refresh = async () => {
+      if (pending || document.hidden) return;
+      pending = true;
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL || ""}/api/assignments?id=${encodeURIComponent(assignment.id)}`,
+          { headers: { Authorization: `Bearer ${session.token}` } },
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (active)
+            setInteractiveEnabled(
+              data.assignments?.[0]?.interactive_enabled === true,
+            );
+        }
+      } catch {
+        /* Keep last confirmed availability; submission is rechecked by the server. */
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [
+    assignment.id,
+    assignment.curriculum_item_id,
+    session.token,
+    practiceOnly,
+  ]);
   const interactive =
-    type !== "assessment" && hasLearningTool(assignment.curriculum_item_id);
+    type !== "assessment" &&
+    hasLearningTool(assignment.curriculum_item_id) &&
+    (practiceOnly || interactiveEnabled);
   const [labReport, setLabReport] = useState(() =>
     String(
       submission?.metadata?.lab_report ||
@@ -617,58 +664,65 @@ export function AssignmentWorkspace({
           {error || proctor.warning}
         </div>
       )}
-      {type !== "assessment" &&
-        hasLearningTool(assignment.curriculum_item_id) && (
-          <details open className="panel p-4">
-            <summary className="font-semibold cursor-pointer">
-              Interactive lab experiment
-            </summary>
-            <fieldset disabled={locked} className="mt-4 min-w-0">
-              <LearningTools
-                id={assignment.curriculum_item_id}
-                theme={theme}
-                onEvent={(action, evidence = {}) => {
-                  if (locked) return;
-                  if (JSON.stringify(evidence).length <= 14000)
-                    setLabEvidence((prev) => ({
-                      ...prev,
-                      [action]: {
-                        ...evidence,
-                        recordedAt: new Date().toISOString(),
-                      },
-                    }));
-                  onEvent({
-                    userId: session.user.id,
-                    assignmentId: assignment.id,
-                    kind: "code_run",
-                    metadata: {
-                      ...evidence,
-                      runType: "learning-interaction",
-                      action,
-                      curriculumItemId: assignment.curriculum_item_id,
-                    },
-                  });
-                }}
-              />
-              <label className="block mt-4 font-semibold">
-                Your observations and explanation
-                <textarea
-                  aria-label="Lab observations and explanation"
-                  className="input-field"
-                  rows={5}
-                  maxLength={6000}
-                  value={labReport}
-                  onChange={(e) => setLabReport(e.target.value)}
-                  placeholder="Explain your approach, inputs, results and what you learned."
-                />
-              </label>
-              <p className="mt-2 text-xs">
-                Your activity evidence and explanation are included when you
-                save or submit this experiment. Faculty reviews the work.
-              </p>
-            </fieldset>
-          </details>
+      {!practiceOnly &&
+        hasLearningTool(assignment.curriculum_item_id) &&
+        !interactiveEnabled && (
+          <p className="panel p-4 text-sm">
+            Complete the manual lab first. Your faculty will enable the
+            interactive activity when ready.
+          </p>
         )}
+      {interactive && (
+        <details open className="panel p-4">
+          <summary className="font-semibold cursor-pointer">
+            Interactive lab experiment
+          </summary>
+          <fieldset disabled={locked} className="mt-4 min-w-0">
+            <LearningTools
+              id={assignment.curriculum_item_id}
+              theme={theme}
+              onEvent={(action, evidence = {}) => {
+                if (locked) return;
+                if (JSON.stringify(evidence).length <= 14000)
+                  setLabEvidence((prev) => ({
+                    ...prev,
+                    [action]: {
+                      ...evidence,
+                      recordedAt: new Date().toISOString(),
+                    },
+                  }));
+                onEvent({
+                  userId: session.user.id,
+                  assignmentId: assignment.id,
+                  kind: "code_run",
+                  metadata: {
+                    ...evidence,
+                    runType: "learning-interaction",
+                    action,
+                    curriculumItemId: assignment.curriculum_item_id,
+                  },
+                });
+              }}
+            />
+            <label className="block mt-4 font-semibold">
+              Your observations and explanation
+              <textarea
+                aria-label="Lab observations and explanation"
+                className="input-field"
+                rows={5}
+                maxLength={6000}
+                value={labReport}
+                onChange={(e) => setLabReport(e.target.value)}
+                placeholder="Explain your approach, inputs, results and what you learned."
+              />
+            </label>
+            <p className="mt-2 text-xs">
+              Your activity evidence and explanation are included when you save
+              or submit this experiment. Faculty reviews the work.
+            </p>
+          </fieldset>
+        </details>
+      )}
       {notice && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-600">
           <CheckCircle2 size={17} />

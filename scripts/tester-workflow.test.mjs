@@ -230,18 +230,16 @@ assert.equal(
 console.log(
   "PASS private draft create/update/delete, tester read-only preview, student denial and generic API isolation",
 );
-await db
-  .from("assignments")
-  .insert({
-    id: "interactive-assigned",
-    title: "Signal lab",
-    curriculum_item_id: "java-lab-16",
-    assignment_type: "lab",
-    work_mode: "ide",
-    due_date: "2099-12-31",
-    max_marks: 10,
-    assigned_user_ids: [],
-  });
+await db.from("assignments").insert({
+  id: "interactive-assigned",
+  title: "Signal lab",
+  curriculum_item_id: "java-lab-16",
+  assignment_type: "lab",
+  work_mode: "ide",
+  due_date: "2099-12-31",
+  max_marks: 10,
+  assigned_user_ids: [],
+});
 const attempt = {
   kind: "submission",
   assignmentId: "interactive-assigned",
@@ -250,6 +248,67 @@ const attempt = {
   status: "submitted",
   metadata: {},
 };
+assert.equal(
+  (
+    await call(assignments, "GET", {}, student.token, {
+      id: "interactive-assigned",
+    })
+  ).assignments[0].interactive_enabled,
+  false,
+);
+for (const actor of [student, tester])
+  assert.equal(
+    (
+      await call(
+        assignments,
+        "PATCH",
+        { id: "interactive-assigned", interactiveEnabled: true },
+        actor.token,
+      )
+    ).status,
+    403,
+  );
+const manualDraft = await call(
+  learning,
+  "POST",
+  { ...attempt, status: "draft" },
+  student.token,
+);
+assert.equal(manualDraft.status, 201);
+assert.equal(manualDraft.record.metadata.interactive_lab, false);
+assert.equal(
+  (
+    await call(
+      assignments,
+      "PATCH",
+      { id: "interactive-assigned", interactiveEnabled: true },
+      faculty.token,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (
+    await call(assignments, "GET", {}, student.token, {
+      id: "interactive-assigned",
+    })
+  ).assignments[0].interactive_enabled,
+  true,
+);
+assert.equal(
+  (
+    await call(
+      learning,
+      "PATCH",
+      {
+        id: "interactive-release:interactive-assigned",
+        metadata: { enabled: true },
+      },
+      student.token,
+    )
+  ).status,
+  403,
+);
 assert.equal(
   (await call(learning, "POST", attempt, student.token)).status,
   400,
@@ -266,7 +325,7 @@ const completed = await call(
   },
   student.token,
 );
-assert.equal(completed.status, 201);
+assert.equal(completed.status, 200);
 assert.equal(completed.record.metadata.interactive_lab, true);
 assert.equal(completed.record.status, "submitted");
 assert.equal(
@@ -275,4 +334,31 @@ assert.equal(
 );
 console.log(
   "PASS server requires interactive report/evidence and locks final submissions",
+);
+assert.equal(
+  (
+    await call(
+      assignments,
+      "PATCH",
+      { id: "interactive-assigned", interactiveEnabled: false },
+      faculty.token,
+    )
+  ).status,
+  200,
+);
+assert.equal(
+  (
+    await call(assignments, "GET", {}, student.token, {
+      id: "interactive-assigned",
+    })
+  ).assignments[0].interactive_enabled,
+  false,
+);
+assert.ok(
+  !(await call(learning, "GET", {}, student.token)).records.some(
+    (r) => r.kind === "lab_release",
+  ),
+);
+console.log(
+  "PASS default off, faculty-only enable/disable after manual draft, persistent flag and protected release records",
 );

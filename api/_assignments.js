@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import {
+  supportsInteractive,
+  setInteractiveRelease,
+} from "./_interactive-release.js";
 import { labDrafts } from "./_lab-drafts.js";
 import { activityTemplates } from "../server/curriculum-templates.js";
 import {
@@ -208,6 +212,7 @@ export default async function handler(req, res) {
         request = request.eq("subject_id", cleanText(query.subject_id));
       if (query.search)
         request = request.ilike("title", `%${cleanText(query.search)}%`);
+      if (query.id) request = request.eq("id", cleanText(query.id));
 
       const { data, error } = await request;
       if (error) throw error;
@@ -239,7 +244,29 @@ export default async function handler(req, res) {
                   : [],
               }))
           : data || [];
-      return res.status(200).json({ assignments });
+      let releaseQuery = supabase
+        .from("learning_records")
+        .select("assignment_id,metadata")
+        .eq("kind", "lab_release");
+      if (query.id)
+        releaseQuery = releaseQuery.eq("assignment_id", cleanText(query.id));
+      const { data: releases, error: releaseError } = await releaseQuery;
+      if (releaseError) throw releaseError;
+      const enabled = new Set(
+        (releases || [])
+          .filter((row) => row.metadata?.enabled === true)
+          .map((row) => row.assignment_id),
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      return res
+        .status(200)
+        .json({
+          assignments: assignments.map((row) => ({
+            ...row,
+            interactive_enabled:
+              supportsInteractive(row) && enabled.has(row.id),
+          })),
+        });
     }
 
     if (!["POST", "PATCH", "DELETE"].includes(req.method)) {
@@ -295,6 +322,44 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Assignment id is required" });
 
     if (req.method === "PATCH") {
+      if (body.interactiveEnabled !== undefined) {
+        if (
+          typeof body.interactiveEnabled !== "boolean" ||
+          Object.keys(body).some(
+            (key) => !["id", "interactiveEnabled"].includes(key),
+          )
+        )
+          return res
+            .status(400)
+            .json({
+              error:
+                "Change interactive availability separately from experiment content",
+            });
+        const { data: row, error } = await supabase
+          .from("assignments")
+          .select("*")
+          .eq("id", id)
+          .single();
+        if (error) throw error;
+        if (!row || !supportsInteractive(row))
+          return res
+            .status(400)
+            .json({ error: "This lab has no built-in interactive activity" });
+        await setInteractiveRelease(
+          supabase,
+          actor,
+          row,
+          body.interactiveEnabled,
+        );
+        return res
+          .status(200)
+          .json({
+            assignment: {
+              ...row,
+              interactive_enabled: body.interactiveEnabled,
+            },
+          });
+      }
       const payload = normalizeAssignmentPayload(body, { partial: true });
       delete payload.id;
       if (Object.keys(payload).length === 0) {
@@ -312,6 +377,7 @@ export default async function handler(req, res) {
         .from("learning_records")
         .select("id")
         .eq("assignment_id", id)
+        .eq("kind", "submission")
         .limit(1);
       if (attemptError) throw attemptError;
       if (attempts?.length)

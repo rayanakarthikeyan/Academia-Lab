@@ -1,4 +1,8 @@
 import { APP_NAME } from "./_brand.js";
+import {
+  supportsInteractive,
+  interactiveEnabled,
+} from "./_interactive-release.js";
 import { randomUUID } from "node:crypto";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
@@ -148,7 +152,7 @@ async function refreshAssignmentCounts(supabase, assignmentId) {
 }
 
 function canRead(record, actor) {
-  if (record.kind === "lab_draft") return false;
+  if (["lab_draft", "lab_release"].includes(record.kind)) return false;
   if (actor.role !== "student") return true;
   if (record.kind === "question") return true;
   return record.author_id === actor.id;
@@ -172,8 +176,8 @@ export default async function handler(req, res) {
     const supabase = createSupabaseClient({ requirePrivileged: true });
     const actor = await requireUser(supabase, req);
     if (
-      cleanText(getBody(req).id || getQuery(req).id).startsWith(
-        "faculty-draft:",
+      /^(faculty-draft:|interactive-release:)/.test(
+        cleanText(getBody(req).id || getQuery(req).id),
       )
     )
       return res
@@ -514,22 +518,18 @@ export default async function handler(req, res) {
       }
       const submittedMetadata = metadata(body.metadata);
       const interactiveLab =
-        submissionAssignment?.assignment_type !== "assessment" &&
-        /^(java-lab-(1|10|16|17|18|19|20|21)|dbms-lab-(1|3))$/.test(
-          submissionAssignment?.curriculum_item_id || "",
-        );
+        supportsInteractive(submissionAssignment) &&
+        (await interactiveEnabled(supabase, submissionAssignment.id));
       if (
         interactiveLab &&
         cleanText(body.status) === "submitted" &&
         (!cleanText(submittedMetadata.lab_report) ||
           !Object.keys(metadata(submittedMetadata.lab_evidence)).length)
       )
-        return res
-          .status(400)
-          .json({
-            error:
-              "Complete the interactive lab and provide your observations before submitting",
-          });
+        return res.status(400).json({
+          error:
+            "Complete the interactive lab and provide your observations before submitting",
+        });
       if (kind === "submission")
         submittedMetadata.interactive_lab = interactiveLab;
       let serverScore =

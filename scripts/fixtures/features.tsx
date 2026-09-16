@@ -76,6 +76,7 @@ function Harness() {
         onSaved={() => undefined}
         assignment={{
           id: "assigned-java-16",
+          interactive_enabled: !location.search.includes("disabled=1"),
           curriculum_item_id: "java-lab-16",
           title: "Assigned traffic signal experiment",
           description: "Select the signal and explain your observations.",
