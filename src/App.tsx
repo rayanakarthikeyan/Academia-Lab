@@ -1,4 +1,4 @@
-import { APP_NAME } from "./platform/branding";
+import { APP_NAME, RELEASE_LABEL } from "./platform/branding";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -546,7 +546,7 @@ export default function App() {
                 {APP_NAME}
               </strong>
               <span className="text-xs text-[var(--muted)]">
-                Academic Learning Platform
+                Academic Learning Platform · {RELEASE_LABEL}
               </span>
             </span>
           </button>

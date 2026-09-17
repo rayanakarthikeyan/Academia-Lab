@@ -1,4 +1,4 @@
-import { APP_NAME } from "../platform/branding";
+import { APP_NAME, RELEASE_LABEL } from "../platform/branding";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -164,7 +164,7 @@ export function AuthScreen({
               </div>
             </div>
             <p className="text-xs font-bold uppercase tracking-[.18em] text-[var(--accent)]">
-              Secure access
+              Secure access · {RELEASE_LABEL}
             </p>
             <h2 className="mt-3 text-3xl font-semibold text-[var(--ink)]">
               {registering ? "Create your student account" : "Welcome back"}

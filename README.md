@@ -1,8 +1,8 @@
 # AsterLab
 
-## Current syllabus audit and local IDE phase
+## Beta release
 
-See [the 31-experiment compatibility audit](docs/syllabus-coverage.md) before promising full syllabus coverage. Original Java GUI/Applet/JDBC programs and database procedures/cursors still need a compatible isolated runtime. This phase installs nothing and deploys nothing.
+AsterLab **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.
 
 The workspace now has instructions on the left, code and personal input in the middle, and output/sample checks on the right (stacked on smaller screens). Sample checks compare exact reference output; faculty must provide console output including SQL headings, rather than descriptive observations, for meaningful comparisons. They are client-reported checks, not authoritative grading.
 
@@ -14,7 +14,7 @@ Faculty can attach up to 20 Java, DBMS (SQL), or HTML/JavaScript practice questi
 
 Select **Visual canvas (HTML / JavaScript)** when publishing a lab to render an interactive, sandboxed preview. The traffic-light starter demonstrates buttons and canvas drawing. This mode runs browser code; it does not execute Java Swing or legacy Java Applets. Java console programs continue to use the real browser Java compiler. Visual results require faculty review.
 
-Before deploying this update to an existing database, apply `supabase/migrations/20260911000012_resource_practice_visual.sql`. Fresh databases use the updated `supabase/schema.sql`. This update has not been deployed automatically.
+Before deploying this update to an existing database, apply `supabase/migrations/20260911000012_resource_practice_visual.sql`. Fresh databases use the updated `supabase/schema.sql`. For the existing hosted portal, preserve the configured database and coursework; do not reseed production.
 
 The default platform name lives in `shared/brand.json`. Set `VITE_APP_NAME` for a build-time override; server prompts also accept `APP_NAME` (keep it consistent with the frontend). Rebuild after changing branding.
 
@@ -94,22 +94,22 @@ Use the existing Java/DBMS lab and coursework editors. There is no new IDE page,
 
 ### Java labs
 
-The console programs for Java labs **1�9 and 11�14** run in the browser (13 of the 21 lab experiments). Labs **10 and 15�21** require desktop Java for GUI, JDBC or applets. Lab 1�s actual breakpoint/debugger exercise still uses a desktop IDE.
+Java labs **1–9 and 11–15** use the real browser Java runtime, including H2 JDBC for lab 15. Lab 1 includes guided checkpoint debugging. Labs **10 and 16–21** have interactive learning simulations; they do not execute original Swing/Applet code.
 
 The bundled Eclipse compiler (ECJ) compiles Java 8 source into bytecode, and DoppioJVM executes it with OpenJDK class libraries. This is real compilation and execution, not AI output or prewritten experiment answers.
 
-- Use `class Main` with `public static void main(String[] args)`. Other classes/interfaces can be declared in the same editor. Java 9+ syntax and separate source-file uploads are not supported.
+- Use a public entry class with `public static void main(String[] args)`. Other classes/interfaces can be declared in the same editor. Java 9+ syntax and separate source-file uploads are not supported.
 - Enter your own values in **Your input (stdin)** before Run. Change them and run again to test another case. Scanner and buffered input receive a finite UTF-8 stream with normal end-of-file behavior.
 - First use downloads about 35 MB of bundled assets. Later runs reuse the download. The compiler operates inside a worker in an opaque-origin iframe with network access disabled. Student source is not sent to a compiler service.
-- **Stop execution** cancels a run. Loading is limited to 2 minutes, compilation to 60 seconds, execution to 15 seconds, and output to 100 KB. Limits apply to each run, not to the number of runs.
-- File labs use `java.io` streams and `java.io.File`; `java.nio.file` operations are not supported by this runtime. Files created by a program are temporary browser files and are discarded after the run; they cannot access the student's computer. File exercises must create their own fixtures in the program. Permissions are virtual filesystem permissions.
-- GUI/Swing windows, JDBC database connections and legacy applets need the college desktop Java environment. The corresponding faculty catalog entries are labeled accordingly. The browser compiler does not provide breakpoint/step debugging for lab 1; students can compile and run its prime-number program here and complete debugger observations in a desktop IDE.
+- **Stop execution** cancels a run. Loading is limited to 2 minutes, compilation to 60 seconds, execution to 15 seconds (60 seconds for JDBC/H2 initialization), and output to 100 KB. Limits apply to each run, not to the number of runs.
+- File labs use `java.io` streams and `java.io.File`; `java.nio.file` operations are not supported by this runtime. Files created by a program are temporary browser files and are discarded after the run; they cannot access the student's computer. Students can upload input files and download generated output files. Permissions are virtual filesystem permissions.
+- Original GUI/Swing windows and legacy applets require a desktop Java environment; the assigned interactive tools are labeled browser simulations. JDBC uses embedded H2, and lab 1 supports explicit checkpoint debugging.
 
 The bundled runtime is an older Java 8 implementation selected for these teaching programs. It is not a full replacement for a current desktop JDK, and unsupported native/runtime APIs can fail explicitly. Do not remove the iframe sandbox or its network restrictions. Execution results are student-side feedback, not trusted server-side grading evidence.
 
 ### DBMS
 
-SQLite executes locally in a browser worker using the bundled sql.js engine and matching WASM file. Each run starts with an empty database; include CREATE/INSERT statements and queries in the same script. This is SQLite, not MySQL, PostgreSQL or Oracle PL/SQL. Queries stop after 10 seconds; output is limited to 100 KB and 1,000 rows per result.
+SQLite and PostgreSQL (PGlite) execute locally in disposable browser workers. Each run starts with an empty database; include setup and data in the same script. PostgreSQL supports procedures, cursors and triggers using PostgreSQL syntax. Oracle PL/SQL is not supported. ER design and normalization have interactive tools with faculty-reviewed evidence.
 
 ### Deployment
 
@@ -139,7 +139,7 @@ Vercel is the configured deployment target. Add the server-only environment vari
 - Registration collects name, email, Indian mobile number, department (CSE/CSM/CSD), section (A-E), roll number and password. The college is fixed to the configured platform name.
 - `server/curriculum-templates.js` has all 31 syllabus experiments and 10 unit practice templates, each with two editable MCQs and one coding activity. Tasks, fixtures and hints are teaching examples added to the syllabus, not official answer keys.
 - Faculty loads a unit/experiment, edits questions, sample input, expected output/observations and hints, chooses a deadline and recipients, then explicitly enables/publishes it. The template API is faculty-only. Published work is editable until a student saves an attempt; after that, publish a new copy.
-- ER design and normalization use written responses. GUI, JDBC and legacy applet experiments require an external lab runtime. Browser file exercises use temporary virtual files. PL/SQL examples require a faculty-managed Oracle environment. Applets are legacy syllabus material, not browser-executable activities; see [Oracle JDK 26 migration guide](https://docs.oracle.com/en/java/javase/26/migrate/jdk-migration-guide.pdf).
+- ER design, normalization and Java visual labs include interactive learning tools inside assigned experiments. Faculty enables these after the manual lab. Tester/faculty draft previews remain available. See the compatibility audit for original-code limitations.
 - Faculty can filter recipients and reports by department/section. Reports preview the complete filtered roster or one student's insights before printing/saving as PDF. Roster screens render 50 students at a time.
 - Analytics use database aggregates and load source code only for the selected student. This reduces transfer size; it is not a measured guarantee of 500 concurrent students. Size and stress-test the isolated runner separately.
 - `npm test` runs local, in-memory registration, enrollment, access-control, template and grading tests without touching production.

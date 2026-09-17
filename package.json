@@ -1,9 +1,10 @@
 {
   "name": "faculty-learning-portal",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "test:beta": "node scripts/beta.test.mjs",
     "test": "node scripts/workflow.test.mjs",
     "test:java": "node scripts/java-browser.test.mjs",
     "test:features": "node scripts/features-browser.test.mjs",
@@ -44,6 +45,13 @@
     "sql.js": "^1.14.2",
     "tailwindcss": "^4.3.3",
     "ws": "^8.21.3"
+  },
+  "overrides": {
+    "dompurify": "3.4.15",
+    "tar@^7": "7.5.22",
+    "tsx": {
+      "esbuild": "0.28.1"
+    }
   },
   "devDependencies": {
     "@types/react": "^19.0.1",

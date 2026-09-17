@@ -84,6 +84,9 @@ export function runJavaInBrowser(
   options: RunOptions = {},
 ): Promise<JavaRunResult> {
   const start = performance.now();
+  // H2 initializes a database inside the interpreted JVM before student SQL runs.
+  // Keep this bounded, but allow slower devices time for that initialization.
+  const executionSeconds = /java\.sql|org\.h2|jdbc:h2/.test(code) ? 60 : 15;
   return new Promise((resolve) => {
     let frame: HTMLIFrameElement | undefined;
     let done = false;
@@ -153,9 +156,9 @@ export function runJavaInBrowser(
           executionTimer = setTimeout(
             () =>
               fail(
-                "Java execution exceeded 15 seconds. Check for infinite loops or waiting threads.",
+                `Java execution exceeded ${executionSeconds} seconds. Check for infinite loops or waiting threads.`,
               ),
-            15000,
+            executionSeconds * 1000,
           );
         }
       }
