@@ -1,4 +1,4 @@
-# AsterLab 1.0.0-beta.1
+# Experivio 1.0.0-beta.1
 
 Release date: 2026-09-17. Intended for a supervised faculty/student pilot, not an assertion of unrestricted production scale or complete desktop IDE compatibility.
 

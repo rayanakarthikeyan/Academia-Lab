@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-let brand = { name: "AsterLab" };
+let brand = { name: "Experivio" };
 try {
   brand = JSON.parse(
     readFileSync(new URL("../shared/brand.json", import.meta.url), "utf8"),
@@ -13,5 +13,5 @@ export const APP_NAME =
   process.env.APP_NAME?.trim() ||
   process.env.VITE_APP_NAME?.trim() ||
   brand.name ||
-  "AsterLab";
+  "Experivio";
 

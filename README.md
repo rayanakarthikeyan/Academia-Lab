@@ -1,8 +1,10 @@
-# AsterLab
+# Experivio
+
+Live beta: [experivio.vercel.app](https://experivio.vercel.app).
 
 ## Beta release
 
-AsterLab **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.
+Experivio **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.
 
 The workspace now has instructions on the left, code and personal input in the middle, and output/sample checks on the right (stacked on smaller screens). Sample checks compare exact reference output; faculty must provide console output including SQL headings, rather than descriptive observations, for meaningful comparisons. They are client-reported checks, not authoritative grading.
 

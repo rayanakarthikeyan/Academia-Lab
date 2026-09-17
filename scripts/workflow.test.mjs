@@ -46,7 +46,7 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal(student.user.department, "CSE");
   assert.equal(student.user.section, "A");
   assert.equal(student.user.contact_number, "9876543210");
-  assert.equal(student.user.college, "AsterLab");
+  assert.equal(student.user.college, "Experivio");
   assert.equal(student.user.password_hash, undefined);
   assert.equal((await call(register, "POST", profile)).status, 409);
   const enrolled = await call(platform, "GET", {}, student.token, { entity: "enrollment" });
