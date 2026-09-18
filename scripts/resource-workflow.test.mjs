@@ -125,6 +125,45 @@ assert.equal((await list(a.token)).resources.length, 1);
 assert.equal((await list(b.token)).resources.length, 1);
 assert.equal((await list(c.token)).resources.length, 0);
 assert.equal((await list(wrongYear.token)).resources.length, 0);
+// Video watch time is delivered once, then visible in both reports.
+const videoEvent = {
+  resourceId: id,
+  courseId: "course-dbms",
+  kind: "video_progress",
+  eventId: "12345678-1234-4321-8765-123456789abc",
+  durationSeconds: 8,
+  metadata: { completionPercent: 8, tracking: "visible-playback" },
+};
+assert.equal(
+  (await call(platform, "POST", videoEvent, a.token, { entity: "activity" }))
+    .status,
+  201,
+);
+assert.equal(
+  (await call(platform, "POST", videoEvent, a.token, { entity: "activity" }))
+    .duplicate,
+  true,
+);
+for (const token of [a.token, ft]) {
+  const report = await call(platform, "GET", {}, token, {
+    entity: "activity",
+    resourceId: id,
+  });
+  assert.equal(
+    report.activity_logs.reduce((sum, row) => sum + row.duration_seconds, 0),
+    8,
+  );
+  assert.equal(report.activity_logs[0].user_id, a.user.id);
+}
+assert.equal(
+  (
+    await call(platform, "GET", {}, b.token, {
+      entity: "activity",
+      resourceId: id,
+    })
+  ).activity_logs.length,
+  0,
+);
 const events = {
   resourceId: id,
   kind: "code_run",

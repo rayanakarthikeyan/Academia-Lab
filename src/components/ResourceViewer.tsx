@@ -33,7 +33,20 @@ interface ResourceViewerProps {
 function youtubeId(url: string) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname.includes("youtu.be"))
+    const host = parsed.hostname.toLowerCase();
+    if (
+      ![
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be",
+        "www.youtu.be",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+      ].includes(host)
+    )
+      return "";
+    if (host === "youtu.be" || host === "www.youtu.be")
       return parsed.pathname.split("/").filter(Boolean)[0] || "";
     if (parsed.searchParams.get("v")) return parsed.searchParams.get("v") || "";
     const parts = parsed.pathname.split("/").filter(Boolean);
@@ -69,28 +82,55 @@ function VideoPlayer({
   resource: LearningResource;
   onEvent: (event: ActivityLog) => void;
 }) {
-  const { mountRef, progress, watchedSeconds } = useVideoTracker({
-    userId: user.id,
-    courseId: resource.courseId,
-    resourceId: resource.id,
-    videoId: youtubeId(resource.externalUrl),
-    onEvent,
-  });
+  const { mountRef, progress, watchedSeconds, error, loading, retry } =
+    useVideoTracker({
+      userId: user.id,
+      courseId: resource.courseId,
+      resourceId: resource.id,
+      videoId: youtubeId(resource.externalUrl),
+      onEvent,
+    });
   return (
     <div>
-      <div className="aspect-video overflow-hidden rounded-lg bg-black">
+      <p className="mb-3 text-sm text-[var(--muted)]">
+        Play this video inside Experivio to record your watch time. If you open
+        it on YouTube or in another app, that watch time will not appear in your
+        learning report or your faculty’s report.
+      </p>
+      {loading && (
+        <p role="status" className="mb-2 text-sm">
+          Loading video player…
+        </p>
+      )}
+      {error && (
+        <div role="alert" className="mb-3 text-sm">
+          <p>{error}</p>
+          <button
+            type="button"
+            className="secondary-button mt-2"
+            onClick={retry}
+          >
+            Retry video
+          </button>
+        </div>
+      )}
+      <div className="aspect-video min-h-[200px] overflow-hidden rounded-lg bg-black">
         <div className="h-full w-full" ref={mountRef} />
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--muted)]">
         <span className="flex items-center gap-1.5">
           <Play size={14} />
-          {Math.floor(watchedSeconds / 60)}m tracked
+          {Math.floor(watchedSeconds / 60)}m {Math.floor(watchedSeconds % 60)}s
+          watched this visit
         </span>
         <span className="flex items-center gap-1.5">
           <CheckCircle2 size={14} />
-          {progress}% complete
+          {progress}% watched this visit
         </span>
-        <span>Only active playback is counted</span>
+        <span>
+          Only playback while this tab is visible is counted. Pauses, buffering
+          and skipped sections do not count.
+        </span>
       </div>
     </div>
   );

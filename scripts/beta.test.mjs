@@ -9,6 +9,7 @@ const suites = [
   "workflow",
   "resource-workflow",
   "resource-browser",
+  "video-browser",
   "tester-workflow",
   "features-browser",
   "ide-telemetry",
