@@ -192,7 +192,6 @@ export function AiTutor({
             together.
           </p>
           <p className="text-xs text-[var(--muted)]">
-            Your question, current work and instructions are shared with Gemini.
             Conversations and work snapshots are saved for faculty review. AI
             can make mistakes; verify its guidance.
           </p>
