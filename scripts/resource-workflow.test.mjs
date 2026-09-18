@@ -12,6 +12,7 @@ const { createSupabaseClient, createSessionToken } =
 const { default: platform } = await import("../api/_platform.js");
 const { default: register } = await import("../api/_register.js");
 const { default: learning } = await import("../api/_learning.js");
+const { default: assignmentsApi } = await import("../api/_assignments.js");
 const { tutorContext } = await import("../api/_tutor-context.js");
 const db = createSupabaseClient();
 const faculty = {
@@ -270,4 +271,190 @@ assert.equal(
 assert.equal((await list(a.token)).resources.length, 1);
 console.log(
   "PASS drafts, publication without students, optional samples, course languages, late signup/enrollment, department/year/section gates, API/tutor/telemetry denial, submission privacy, idempotency, faculty review and unpublish retention",
+);
+
+await db.from("assignments").insert([
+  {
+    id: "cohort-dbms-lab",
+    course_code: "DBMS",
+    assignment_type: "lab",
+    assigned_user_ids: [],
+    due_date: "2099-12-31",
+    title: "SQL lab",
+  },
+  {
+    id: "cohort-java-lab",
+    course_code: "JAVA",
+    assignment_type: "lab",
+    assigned_user_ids: [],
+    due_date: "2099-12-31",
+    title: "Java lab",
+  },
+  {
+    id: "cohort-explicit-outsider",
+    course_code: "DBMS",
+    assignment_type: "practice",
+    assigned_user_ids: [c.user.id],
+    due_date: "2099-12-31",
+  },
+]);
+const assignmentList = (student, query = {}) =>
+  call(assignmentsApi, "GET", {}, student.token, query);
+assert.deepEqual(
+  (await assignmentList(a)).assignments.map((row) => row.id),
+  ["cohort-dbms-lab"],
+);
+for (const outsider of [c, wrongYear]) {
+  assert.equal((await assignmentList(outsider)).assignments.length, 0);
+  assert.equal(
+    (await assignmentList(outsider, { id: "cohort-dbms-lab" })).assignments
+      .length,
+    0,
+  );
+  assert.equal(
+    (
+      await call(
+        learning,
+        "POST",
+        {
+          kind: "submission",
+          assignmentId: "cohort-dbms-lab",
+          title: "SQL lab",
+          body: "SELECT 1",
+          status: "draft",
+        },
+        outsider.token,
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await call(
+        platform,
+        "POST",
+        { assignmentId: "cohort-dbms-lab", kind: "code_run" },
+        outsider.token,
+        { entity: "activity" },
+      )
+    ).status,
+    403,
+  );
+  await assert.rejects(
+    () =>
+      tutorContext(db, outsider.user, {
+        kind: "assignment",
+        id: "cohort-dbms-lab",
+      }),
+    /cohort/,
+  );
+}
+const { data: aRows } = await db.from("users").select("*").eq("id", a.user.id);
+await db.from("users").update({ department: "CSM" }).eq("id", a.user.id);
+assert.equal((await assignmentList(a)).assignments.length, 0);
+assert.equal((await list(a.token)).resources.length, 0);
+await db
+  .from("users")
+  .update({ department: aRows[0].department })
+  .eq("id", a.user.id);
+assert.equal(
+  (
+    await call(
+      learning,
+      "POST",
+      {
+        kind: "submission",
+        assignmentId: "cohort-dbms-lab",
+        title: "SQL lab",
+        body: "SELECT 1",
+        status: "draft",
+      },
+      b.token,
+    )
+  ).status,
+  201,
+);
+await db
+  .from("course_cohorts")
+  .update({ sections: ["A"] })
+  .eq("course_id", "course-dbms");
+assert.equal((await assignmentList(b)).assignments.length, 0);
+assert.equal((await list(b.token)).resources.length, 0);
+assert.equal(
+  (
+    await call(learning, "GET", {}, b.token, {
+      assignmentId: "cohort-dbms-lab",
+    })
+  ).records.length,
+  0,
+);
+assert.equal(
+  (
+    await call(
+      learning,
+      "POST",
+      {
+        kind: "submission",
+        assignmentId: "cohort-dbms-lab",
+        title: "SQL lab",
+        body: "changed",
+        status: "submitted",
+      },
+      b.token,
+    )
+  ).status,
+  403,
+);
+assert.equal((await assignmentList(a)).assignments.length, 1);
+console.log(
+  "PASS assignment cohort isolation: Java/DBMS separation, department/year/section, explicit recipient cannot bypass cohort, direct read/write/tutor/telemetry denial, and revocation despite prior enrollment and saved draft.",
+);
+await db.from("assessments").insert([
+  { id: "cohort-exam", course_id: "course-dbms", status: "available" },
+  { id: "unpublished-exam", course_id: "course-java", status: "available" },
+]);
+assert.deepEqual(
+  (
+    await call(platform, "GET", {}, a.token, { entity: "assessment" })
+  ).assessments.map((row) => row.id),
+  ["cohort-exam"],
+);
+assert.equal(
+  (await call(platform, "GET", {}, b.token, { entity: "assessment" }))
+    .assessments.length,
+  0,
+);
+assert.equal(
+  (
+    await call(platform, "POST", { assessmentId: "cohort-exam" }, b.token, {
+      entity: "submission",
+    })
+  ).status,
+  403,
+);
+assert.equal(
+  (
+    await call(
+      platform,
+      "POST",
+      { assessmentId: "cohort-exam", kind: "exam_started" },
+      b.token,
+      { entity: "activity" },
+    )
+  ).status,
+  403,
+);
+await db.from("course_cohorts").delete().eq("course_id", "course-dbms");
+assert.equal((await assignmentList(a)).assignments.length, 0);
+assert.equal((await list(a.token)).resources.length, 0);
+assert.equal(
+  (
+    await call(platform, "POST", { courseId: "course-dbms" }, a.token, {
+      entity: "enrollment",
+    })
+  ).status,
+  403,
+);
+console.log(
+  "PASS assessment cohort gates and course unpublication deny existing enrollments.",
 );

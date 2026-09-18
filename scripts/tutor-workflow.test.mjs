@@ -59,6 +59,7 @@ await db
   .from("assignments")
   .insert({
     id: "tutor-lab",
+    course_code: "JAVA",
     title: "Prime lab",
     description: "Explain primality",
     assignment_type: "lab",
@@ -77,6 +78,7 @@ await db
   .from("assignments")
   .insert({
     id: "tutor-exam",
+    course_code: "JAVA",
     title: "Exam",
     assignment_type: "assessment",
     assigned_user_ids: [],
@@ -108,6 +110,8 @@ await db
   });
 await db.from("course_cohorts").insert({id:"tutor-cohort",course_id:"course-dbms",target_audience:"all"});
 await db.from("enrollments").insert({id:"tutor-enrollment",course_id:"course-dbms",user_id:"tutor-student",status:"active"});
+await db.from("course_cohorts").insert({id:"tutor-java-cohort",course_id:"course-java",target_audience:"all"});
+await db.from("enrollments").insert({id:"tutor-java-enrollment",course_id:"course-java",user_id:"tutor-student",status:"active"});
 let prompts = [];
 const tutor = createTutorHandler(async (prompt) => {
   prompts.push(JSON.parse(prompt));

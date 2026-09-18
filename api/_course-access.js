@@ -50,3 +50,32 @@ export async function requireResourceAccess(db, actor, resource) {
       { statusCode: 403 },
     );
 }
+
+export function assignmentCourseId(assignment) {
+  const code = String(assignment?.course_code || "").toUpperCase();
+  return code === "JAVA" ? "course-java" : code === "DBMS" ? "course-dbms" : "";
+}
+export function canAccessAssignment(actor, assignment, allowedCourses) {
+  if (!assignment) return false;
+  if (actor.role !== "student" || isTester(actor)) return true;
+  const recipients = assignment.assigned_user_ids || [];
+  return (
+    Boolean(allowedCourses?.has(assignmentCourseId(assignment))) &&
+    (!recipients.length || recipients.includes(actor.id))
+  );
+}
+export async function requireAssignmentAccess(db, actor, assignment) {
+  if (
+    !canAccessAssignment(
+      actor,
+      assignment,
+      await studentCourseAccess(db, actor),
+    )
+  )
+    throw Object.assign(
+      new Error(
+        "This assignment is not available in your published course cohort.",
+      ),
+      { statusCode: 403 },
+    );
+}

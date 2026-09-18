@@ -3,6 +3,7 @@ import {
   studentCourseAccess,
   matchesPublishedCohort,
   requireResourceAccess,
+  requireAssignmentAccess,
 } from "./_course-access.js";
 import { resourcePractice } from "./_resource-practice.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -127,11 +128,15 @@ export default async function handler(req, res) {
         request = request.eq("assessment_id", cleanText(query.assessmentId));
       const { data, error } = await request;
       if (error) throw error;
-      const allowedCourses =
-        entity === "resource" || entity === "enrollment"
-          ? await studentCourseAccess(supabase, actor)
-          : null;
-      const rows =
+      const allowedCourses = [
+        "resource",
+        "enrollment",
+        "assessment",
+        "submission",
+      ].includes(entity)
+        ? await studentCourseAccess(supabase, actor)
+        : null;
+      let rows =
         entity === "resource" && actor.role === "student"
           ? (data || []).filter((resource) => {
               return !allowedCourses || allowedCourses.has(resource.course_id);
@@ -143,6 +148,28 @@ export default async function handler(req, res) {
                 !isTester(actor)
               ? (data || []).filter((row) => matchesPublishedCohort(row, actor))
               : data || [];
+      if (actor.role === "student" && entity === "assessment")
+        rows = rows.filter(
+          (row) =>
+            row.status !== "draft" &&
+            (!allowedCourses || allowedCourses.has(row.course_id)),
+        );
+      if (
+        actor.role === "student" &&
+        entity === "submission" &&
+        allowedCourses
+      ) {
+        const result = await supabase
+          .from("assessments")
+          .select("id,course_id");
+        if (result.error) throw result.error;
+        const ids = new Set(
+          (result.data || [])
+            .filter((row) => allowedCourses.has(row.course_id))
+            .map((row) => row.id),
+        );
+        rows = rows.filter((row) => ids.has(row.assessment_id));
+      }
       return res
         .status(200)
         .json(
@@ -160,6 +187,28 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: "Invalid activity kind" });
         const assignmentId = cleanText(body.assignmentId) || null;
         let verifiedCourseId = cleanText(body.courseId) || null;
+        if (body.assessmentId && actor.role === "student") {
+          const result = await supabase
+            .from("assessments")
+            .select("id,course_id,status")
+            .eq("id", cleanText(body.assessmentId))
+            .limit(1);
+          if (result.error) throw result.error;
+          const assessment = result.data?.[0];
+          const allowed = await studentCourseAccess(supabase, actor);
+          if (
+            !assessment ||
+            assessment.status === "draft" ||
+            (allowed && !allowed.has(assessment.course_id))
+          )
+            return res
+              .status(403)
+              .json({
+                error:
+                  "This assessment is not available in your published course cohort.",
+              });
+          verifiedCourseId = assessment.course_id;
+        }
         if (JSON.stringify(metadata(body.metadata)).length > 16000)
           return res
             .status(413)
@@ -177,6 +226,7 @@ export default async function handler(req, res) {
           const target = targets?.[0];
           if (!assignmentId)
             await requireResourceAccess(supabase, actor, target);
+          else await requireAssignmentAccess(supabase, actor, target);
           if (
             !target ||
             (!assignmentId && target.is_published === false) ||
@@ -353,12 +403,9 @@ export default async function handler(req, res) {
             !target.year &&
             !target.sections?.length)
         )
-          return res
-            .status(400)
-            .json({
-              error:
-                "Choose a valid department, year or section for the cohort",
-            });
+          return res.status(400).json({
+            error: "Choose a valid department, year or section for the cohort",
+          });
         const payload = {
           id: `pub-${randomUUID()}`,
           course_id: cleanText(body.courseId),
@@ -427,6 +474,25 @@ export default async function handler(req, res) {
             .json({ error: "Only students can create submissions" });
         const missing = requireFields(body, ["assessmentId"]);
         if (missing) return res.status(400).json({ error: missing });
+        const result = await supabase
+          .from("assessments")
+          .select("id,course_id,status")
+          .eq("id", cleanText(body.assessmentId))
+          .limit(1);
+        if (result.error) throw result.error;
+        const assessment = result.data?.[0];
+        const allowed = await studentCourseAccess(supabase, actor);
+        if (
+          !assessment ||
+          assessment.status !== "available" ||
+          (allowed && !allowed.has(assessment.course_id))
+        )
+          return res
+            .status(403)
+            .json({
+              error:
+                "This assessment is not available in your published course cohort.",
+            });
         const payload = {
           id: `sub-${randomUUID()}`,
           assessment_id: cleanText(body.assessmentId),

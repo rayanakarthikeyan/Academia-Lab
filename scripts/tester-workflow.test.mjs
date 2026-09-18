@@ -31,6 +31,21 @@ async function call(handler, method, body = {}, token = "", query = {}) {
   return { status, ...result };
 }
 const db = createSupabaseClient({ requirePrivileged: true });
+await db
+  .from("course_cohorts")
+  .insert({
+    id: "tester-java-cohort",
+    course_id: "course-java",
+    target_audience: "all",
+  });
+await db
+  .from("enrollments")
+  .insert({
+    id: "tester-java-enrollment",
+    course_id: "course-java",
+    user_id: "student-fixture",
+    status: "active",
+  });
 for (const [id, role, title] of [
   ["tester-fixture", "student", "Platform tester"],
   ["student-fixture", "student", "Student"],
@@ -232,6 +247,7 @@ console.log(
 );
 await db.from("assignments").insert({
   id: "interactive-assigned",
+  course_code: "JAVA",
   title: "Signal lab",
   curriculum_item_id: "java-lab-16",
   assignment_type: "lab",

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { studentCourseAccess } from "./_course-access.js";
 import {
   assertSubjectType,
   cleanText,
@@ -73,7 +74,19 @@ export default async function handler(req, res) {
 
       const { data, error } = await request;
       if (error) throw error;
-      return res.status(200).json({ subjects: data || [] });
+      const allowed = await studentCourseAccess(supabase, actor, false);
+      const subjects = (data || []).filter((subject) => {
+        if (!allowed) return true;
+        const label = `${subject.id} ${subject.name}`;
+        const courseId = /java/i.test(label)
+          ? "course-java"
+          : /dbms|database/i.test(label)
+            ? "course-dbms"
+            : "";
+        return allowed.has(courseId);
+      });
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.status(200).json({ subjects });
     }
 
     if (!["POST", "PATCH", "DELETE"].includes(req.method)) {

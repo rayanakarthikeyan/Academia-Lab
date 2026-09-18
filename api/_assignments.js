@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { studentCourseAccess, canAccessAssignment } from "./_course-access.js";
 import {
   supportsInteractive,
   setInteractiveRelease,
@@ -13,7 +14,6 @@ import {
   handleOptions,
   methodNotAllowed,
   requireUser,
-  isTester,
   requireFields,
   sendError,
   setCors,
@@ -216,21 +216,13 @@ export default async function handler(req, res) {
 
       const { data, error } = await request;
       if (error) throw error;
+      const allowedCourses = await studentCourseAccess(supabase, actor);
       const assignments =
         actor.role === "student"
           ? (data || [])
-              .filter((assignment) => {
-                const assignedUserIds = Array.isArray(
-                  assignment.assigned_user_ids,
-                )
-                  ? assignment.assigned_user_ids
-                  : [];
-                return (
-                  assignedUserIds.length === 0 ||
-                  assignedUserIds.includes(actor.id) ||
-                  isTester(actor)
-                );
-              })
+              .filter((assignment) =>
+                canAccessAssignment(actor, assignment, allowedCourses),
+              )
               .map((assignment) => ({
                 ...assignment,
                 test_cases: (assignment.test_cases || []).filter(
@@ -258,15 +250,12 @@ export default async function handler(req, res) {
           .map((row) => row.assignment_id),
       );
       res.setHeader("Cache-Control", "private, no-store");
-      return res
-        .status(200)
-        .json({
-          assignments: assignments.map((row) => ({
-            ...row,
-            interactive_enabled:
-              supportsInteractive(row) && enabled.has(row.id),
-          })),
-        });
+      return res.status(200).json({
+        assignments: assignments.map((row) => ({
+          ...row,
+          interactive_enabled: supportsInteractive(row) && enabled.has(row.id),
+        })),
+      });
     }
 
     if (!["POST", "PATCH", "DELETE"].includes(req.method)) {
@@ -329,12 +318,10 @@ export default async function handler(req, res) {
             (key) => !["id", "interactiveEnabled"].includes(key),
           )
         )
-          return res
-            .status(400)
-            .json({
-              error:
-                "Change interactive availability separately from experiment content",
-            });
+          return res.status(400).json({
+            error:
+              "Change interactive availability separately from experiment content",
+          });
         const { data: row, error } = await supabase
           .from("assignments")
           .select("*")
@@ -351,14 +338,12 @@ export default async function handler(req, res) {
           row,
           body.interactiveEnabled,
         );
-        return res
-          .status(200)
-          .json({
-            assignment: {
-              ...row,
-              interactive_enabled: body.interactiveEnabled,
-            },
-          });
+        return res.status(200).json({
+          assignment: {
+            ...row,
+            interactive_enabled: body.interactiveEnabled,
+          },
+        });
       }
       const payload = normalizeAssignmentPayload(body, { partial: true });
       delete payload.id;

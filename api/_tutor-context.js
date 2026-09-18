@@ -1,5 +1,8 @@
 import { isTester } from "./_shared.js";
-import { requireResourceAccess } from "./_course-access.js";
+import {
+  requireResourceAccess,
+  requireAssignmentAccess,
+} from "./_course-access.js";
 import labQuestions from "../src/platform/lab-questions.json" with { type: "json" };
 export function tutorError(message, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
@@ -49,6 +52,7 @@ export async function tutorContext(db, actor, input) {
   )
     throw tutorError("This activity is not assigned to you.", 403);
   if (kind === "assignment") {
+    await requireAssignmentAccess(db, actor, row);
     if (row.assignment_type === "assessment")
       throw tutorError("The tutor is unavailable for assessments.", 403);
     return {

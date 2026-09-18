@@ -100,7 +100,8 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal((await call(assignments, "POST", { ...payload, dueDate: "2099-02-31" }, faculty.token)).status, 400);
   const visual = await call(assignments, "POST", { ...payload, assignmentType: "lab", curriculumItemId: "visual-test", workMode: "ide", executionEnvironment: "visual", assignedUserIds: [], testCases: [{ input: "", output: "Canvas changes on click", hidden: false }, { input: "private", output: "secret", hidden: true }] }, faculty.token);
   assert.equal(visual.status, 201);
-  const visibleVisual = (await call(assignments, "GET", {}, outsider.token)).assignments.find(a => a.id === visual.assignment.id);
+  assert.equal((await call(assignments, "GET", {}, outsider.token)).assignments.length, 0);
+  const visibleVisual = (await call(assignments, "GET", {}, student.token)).assignments.find(a => a.id === visual.assignment.id);
   assert.equal(visibleVisual.execution_environment, "visual");
   assert.equal(visibleVisual.test_cases.length, 1);
   assert.equal((await call(learning, "POST", { kind: "submission", assignmentId: labWork.assignment.id, title: "Unauthorized", body: "code", status: "draft" }, outsider.token)).status, 403);

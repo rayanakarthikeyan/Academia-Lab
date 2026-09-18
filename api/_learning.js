@@ -1,5 +1,10 @@
 import { APP_NAME } from "./_brand.js";
 import {
+  studentCourseAccess,
+  canAccessAssignment,
+  requireAssignmentAccess,
+} from "./_course-access.js";
+import {
   supportsInteractive,
   interactiveEnabled,
 } from "./_interactive-release.js";
@@ -221,9 +226,28 @@ export default async function handler(req, res) {
         ]);
       if (error) throw error;
       if (peopleError) throw peopleError;
+      let allowedAssignments = null;
+      if (actor.role === "student" && !isTester(actor)) {
+        const allowedCourses = await studentCourseAccess(supabase, actor);
+        const result = await supabase
+          .from("assignments")
+          .select("id,course_code,assigned_user_ids");
+        if (result.error) throw result.error;
+        allowedAssignments = new Set(
+          (result.data || [])
+            .filter((row) => canAccessAssignment(actor, row, allowedCourses))
+            .map((row) => row.id),
+        );
+      }
       return res.status(200).json({
         records: (data || [])
           .filter((record) => canRead(record, actor))
+          .filter(
+            (record) =>
+              !record.assignment_id ||
+              !allowedAssignments ||
+              allowedAssignments.has(record.assignment_id),
+          )
           .map((record) => studentSafe(record, actor)),
         people: (people || []).filter(
           (person) =>
@@ -419,6 +443,8 @@ export default async function handler(req, res) {
                 .eq("assignment_id", assignmentId)
             : Promise.resolve({ data: [] }),
         ]);
+        if (assignmentId)
+          await requireAssignmentAccess(supabase, actor, assignments?.[0]);
         const reply = {
           answer: builtInTutor(
             message,
@@ -496,6 +522,7 @@ export default async function handler(req, res) {
         submissionAssignment = assignmentRows?.[0];
         if (!submissionAssignment)
           return res.status(404).json({ error: "Assignment not found" });
+        await requireAssignmentAccess(supabase, actor, submissionAssignment);
         const assignedIds = Array.isArray(
           submissionAssignment.assigned_user_ids,
         )
@@ -670,11 +697,9 @@ Respond with ONLY a valid JSON object matching this schema:
     if (!existing)
       return res.status(404).json({ error: "Learning record not found" });
     if (existing.kind === "ai_chat")
-      return res
-        .status(403)
-        .json({
-          error: "Tutor history cannot be edited through this endpoint",
-        });
+      return res.status(403).json({
+        error: "Tutor history cannot be edited through this endpoint",
+      });
     if (existing.kind === "submission" && actor.role === "student")
       return res.status(403).json({
         error: "Use the validated submission workflow to save your work",
