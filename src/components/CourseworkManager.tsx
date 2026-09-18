@@ -1,5 +1,6 @@
 import { VisualPreview } from "./VisualPreview";
 import { AiTutor, type TutorContext } from "./AiTutor";
+import labQuestions from "../platform/lab-questions.json";
 import { useLearningTime } from "../hooks/useLearningTime";
 import { LearningTools, hasLearningTool } from "./labs/LearningTools";
 import { ActivityDeliveryStatus } from "./ActivityDeliveryStatus";
@@ -643,6 +644,10 @@ export function AssignmentWorkspace({
     session.user.role === "student" &&
     type !== "assessment" &&
     Boolean(tutorContext || !practiceOnly);
+  const syllabusQuestion =
+    type === "lab"
+      ? (labQuestions as Record<string, string>)[assignment.curriculum_item_id]
+      : undefined;
   const tutorPanel = session.user.role === "student" &&
     type !== "assessment" &&
     (tutorContext || !practiceOnly) && (
@@ -776,16 +781,38 @@ export function AssignmentWorkspace({
           className="panel min-w-0 h-fit p-5"
         >
           <p className="text-xs font-bold uppercase tracking-[.14em] text-cyan-600">
-            {type === "lab" ? "Experiment brief" : "Instructions"}
+            {type === "lab" ? "Experiment question" : "Instructions"}
           </p>
           <p className="mt-4 whitespace-pre-line text-sm leading-6 text-[var(--muted)]">
-            {assignment.description}
+            {syllabusQuestion || assignment.description}
           </p>
+          {syllabusQuestion && (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              {assignmentCourse(assignment) === "DBMS"
+                ? "Practice question based on the syllabus topic."
+                : "Based on the Java lab syllabus."}
+            </p>
+          )}
+          {syllabusQuestion &&
+            assignment.description &&
+            assignment.description !== syllabusQuestion && (
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
+                <h3 className="text-xs font-semibold">Faculty instructions</h3>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[var(--muted)]">
+                  {assignment.description}
+                </p>
+              </div>
+            )}
           <ActivityDeliveryStatus session={session} />
           {syllabusSupport(assignment.curriculum_item_id) && (
-            <p className="mt-4 rounded-lg bg-amber-500/10 p-3 text-xs leading-5 text-amber-700">
-              {syllabusSupport(assignment.curriculum_item_id)}
-            </p>
+            <details className="mt-4 text-xs leading-5 text-[var(--muted)]">
+              <summary className="cursor-pointer font-semibold">
+                Lab environment notes
+              </summary>
+              <p className="mt-2">
+                {syllabusSupport(assignment.curriculum_item_id)}
+              </p>
+            </details>
           )}
           {!practiceOnly && (
             <div className="mt-5 border-t border-[var(--line)] pt-4 text-xs text-[var(--muted)]">
@@ -831,9 +858,12 @@ export function AssignmentWorkspace({
             </div>
           )}
           {isCoding && language === "java" && !external && !visual && (
-            <p className="mt-4 text-xs text-[var(--muted)]">
-              {javaCompilerHelp}
-            </p>
+            <details className="mt-4 text-xs text-[var(--muted)]">
+              <summary className="cursor-pointer font-semibold">
+                Runtime help
+              </summary>
+              <p className="mt-2">{javaCompilerHelp}</p>
+            </details>
           )}
           {!isMcq && !visual && (
             <div className="mt-5 border-t border-[var(--line)] pt-4">

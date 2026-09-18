@@ -67,6 +67,26 @@ try {
     path: "tmp/workspace-chat-desktop.png",
     fullPage: true,
   });
+  await p.goto(
+    (process.env.TEST_BASE_URL || "http://127.0.0.1:5173") +
+      "/scripts/fixtures/features.html?disabled=1#assigned-lab",
+  );
+  const brief = p.getByRole("complementary", {
+    name: "Experiment instructions",
+  });
+  await brief.getByText(/Write a Java traffic-light simulation/).waitFor();
+  assert.equal(
+    await brief.getByText("Faculty instructions", { exact: true }).count(),
+    1,
+  );
+  assert.equal(
+    await brief.getByText(/The simulator is not an original Swing/).isVisible(),
+    false,
+  );
+  assert.equal(
+    await p.getByText("Interactive lab experiment", { exact: true }).count(),
+    0,
+  );
   console.log(
     "PASS four-panel order, right-side tutor, responsive stacking, retained chat input and no horizontal page overflow",
   );

@@ -1,4 +1,5 @@
 import { isTester } from "./_shared.js";
+import labQuestions from "../src/platform/lab-questions.json" with { type: "json" };
 export function tutorError(message, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
 }
@@ -33,6 +34,7 @@ export async function tutorContext(db, actor, input) {
       key: `draft:${id}`,
       title: d.title,
       instructions: d.brief,
+      syllabusQuestion: labQuestions[d.id],
       hints: d.outcomes,
       course: d.courseCode,
       assignmentId: null,
@@ -51,6 +53,10 @@ export async function tutorContext(db, actor, input) {
       key: `assignment:${id}`,
       title: row.title,
       instructions: row.description,
+      syllabusQuestion:
+        row.assignment_type === "lab"
+          ? labQuestions[row.curriculum_item_id]
+          : undefined,
       questions: (row.questions || []).map((q) => ({
         id: q.id,
         prompt: q.prompt,
