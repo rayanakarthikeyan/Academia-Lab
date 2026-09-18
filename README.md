@@ -2,6 +2,8 @@
 
 Live beta: [experivio.vercel.app](https://experivio.vercel.app).
 
+Students can use the contextual AI Tutor in labs, practice and resources; faculty can review saved chats, shared work and tutor-usage insights. See [AI Tutor and student insights](docs/ai-tutor.md) for context handling, privacy, learning-time measurement and testing.
+
 ## Beta release
 
 Experivio **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.

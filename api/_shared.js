@@ -139,6 +139,11 @@ class LocalQuery {
     return this;
   }
 
+  range(from, to) {
+    this.rangeBounds = [from, to];
+    return this;
+  }
+
   insert(payload) {
     this.operation = "insert";
     this.payload = Array.isArray(payload) ? payload : [payload];
@@ -248,6 +253,8 @@ class LocalQuery {
       });
     }
     if (this.limitCount !== undefined) rows = rows.slice(0, this.limitCount);
+    if (this.rangeBounds)
+      rows = rows.slice(this.rangeBounds[0], this.rangeBounds[1] + 1);
 
     const count = this.selectOptions.count ? indexes.length : null;
     const data = this.selectOptions.head

@@ -1,4 +1,5 @@
 import { APP_NAME } from "../platform/branding";
+import { TutorInsights, TutorHistory } from "./TutorInsights";
 import { FacultyActivityHistory } from "./FacultyActivityHistory";
 import { TesterActivity } from "./TesterActivity";
 import {
@@ -16,7 +17,6 @@ import {
   loadCoursework,
   loadResourceActivity,
   loadStudentWork,
-  loadAiChatLogs,
   bulkAutoGrade,
 } from "../platform/api";
 import type {
@@ -53,7 +53,9 @@ export function FacultyAnalytics({
   const [details, setDetails] = useState<LearningRecord[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
-  const [aiLogs, setAiLogs] = useState<any[]>([]);
+  const [insightsView, setInsightsView] = useState(
+    compact ? "coursework" : "tutor",
+  );
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("");
   const [section, setSection] = useState("");
@@ -218,14 +220,10 @@ export function FacultyAnalytics({
       return;
     }
     setDetailsLoading(true);
-    void Promise.all([
-      loadStudentWork(session.token, effectiveSelectedId),
-      loadAiChatLogs(session.token, effectiveSelectedId),
-    ])
-      .then(([rows, logs]) => {
+    void Promise.all([loadStudentWork(session.token, effectiveSelectedId)])
+      .then(([rows]) => {
         if (active) {
           setDetails(rows);
-          setAiLogs(logs);
         }
       })
       .catch((caught) => {
@@ -259,6 +257,25 @@ export function FacultyAnalytics({
     { submitted: 0, assigned: 0, minutes: 0 },
   );
 
+  if (!loading && insightsView === "tutor")
+    return (
+      <div className="mx-auto max-w-[1440px] space-y-5">
+        <h2 className="text-2xl font-semibold">Student insights</h2>
+        <TesterActivity token={session.token} assignments={assignments} />
+        <button
+          className="secondary-button"
+          onClick={() => setInsightsView("coursework")}
+        >
+          Coursework and submission reports
+        </button>
+        {error && <p role="alert">{error}</p>}
+        <TutorInsights
+          session={session}
+          students={students}
+          activities={activities}
+        />
+      </div>
+    );
   if (loading)
     return (
       <div className="empty-panel min-h-72">
@@ -311,6 +328,12 @@ export function FacultyAnalytics({
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
       <TesterActivity token={session.token} assignments={assignments} />
+      <button
+        className="secondary-button"
+        onClick={() => setInsightsView("tutor")}
+      >
+        AI usage and learning insights
+      </button>
       <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--line)] pb-5">
         <div>
           <p className="text-xs text-[var(--muted)]">{APP_NAME}</p>
@@ -617,45 +640,11 @@ export function FacultyAnalytics({
                   ) : null}
                 </details>
               ))}
-              <h4 className="mt-6 text-sm font-semibold">
-                AI Tutor Transcripts
-              </h4>
-              {aiLogs.length === 0 && (
-                <p className="mt-3 text-sm text-[var(--muted)]">
-                  No AI tutor chats recorded.
-                </p>
-              )}
-              {aiLogs.length > 0 && (
-                <div className="mt-4 space-y-4">
-                  {Array.from(new Set(aiLogs.map((l) => l.challenge_id))).map(
-                    (cid) => (
-                      <details
-                        key={cid}
-                        className="border border-[var(--line)] rounded-md p-3"
-                      >
-                        <summary className="cursor-pointer text-sm font-medium">
-                          Challenge: {cid}
-                        </summary>
-                        <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
-                          {aiLogs
-                            .filter((l) => l.challenge_id === cid)
-                            .map((log) => (
-                              <div
-                                key={log.id}
-                                className={`text-xs p-2 rounded ${log.role === "user" ? "bg-cyan-500/10 ml-4" : "bg-[var(--surface-2)] mr-4"}`}
-                              >
-                                <strong className="block mb-1">
-                                  {log.role === "user" ? "Student" : "AI"}
-                                </strong>
-                                {log.content}
-                              </div>
-                            ))}
-                        </div>
-                      </details>
-                    ),
-                  )}
-                </div>
-              )}
+              <TutorHistory
+                key={selected.id}
+                token={session.token}
+                studentId={selected.id}
+              />
             </>
           ) : (
             <div className="empty-panel min-h-48">

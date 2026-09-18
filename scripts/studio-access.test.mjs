@@ -55,7 +55,7 @@ try {
     })
     .tap();
   await page.getByText("Platform Tester · Tester", { exact: true }).waitFor();
-  await page.locator("details details summary").tap();
+  await page.getByText(/Learning activity ·/).tap();
   await page.getByText("Action: debug_pause", { exact: true }).waitFor();
   await page.getByText("composite", { exact: true }).waitFor();
   await page

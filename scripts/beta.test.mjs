@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 // Start the local Vite preview separately. Browser tests use PLAYWRIGHT_MODULE,
 // PLAYWRIGHT_EXECUTABLE_PATH and TEST_BASE_URL when supplied.
 const suites = [
+  "tutor-workflow",
+  "tutor-browser",
   "workflow",
   "tester-workflow",
   "features-browser",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FacultyActivityHistory } from "./FacultyActivityHistory";
+import { TutorHistory } from "./TutorInsights";
 import type { AssignmentRecord } from "../platform/types";
 export function TesterActivity({
   token,
@@ -50,6 +51,10 @@ export function TesterActivity({
             userId={user.id}
             assignments={assignments}
           />
+          <details className="mt-3">
+            <summary>Tester tutor conversations</summary>
+            <TutorHistory token={token} studentId={user.id} />
+          </details>
         </section>
       ))}
     </details>

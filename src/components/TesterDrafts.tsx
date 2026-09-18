@@ -76,6 +76,7 @@ export function TesterDrafts({
         <AssignmentWorkspace
           key={selected.id + selected.updated_at}
           practiceOnly
+          tutorContext={{ kind: "draft", id: selected.id }}
           assignment={assignment}
           session={session}
           theme={theme}

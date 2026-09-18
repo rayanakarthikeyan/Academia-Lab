@@ -176,7 +176,7 @@ export default async function handler(req, res) {
     const supabase = createSupabaseClient({ requirePrivileged: true });
     const actor = await requireUser(supabase, req);
     if (
-      /^(faculty-draft:|interactive-release:)/.test(
+      /^(faculty-draft:|interactive-release:|tutor:)/.test(
         cleanText(getBody(req).id || getQuery(req).id),
       )
     )
@@ -462,6 +462,10 @@ export default async function handler(req, res) {
           ? `learn-submission-${assignmentId}-${actor.id}`
           : `learn-question-${randomUUID()}`);
       const existing = await findRecord(supabase, id);
+      if (existing?.kind === "ai_chat")
+        return res
+          .status(403)
+          .json({ error: "Tutor history cannot be replaced" });
       let submissionAssignment = null;
       if (kind === "submission") {
         if (
@@ -665,6 +669,12 @@ Respond with ONLY a valid JSON object matching this schema:
     const existing = await findRecord(supabase, id);
     if (!existing)
       return res.status(404).json({ error: "Learning record not found" });
+    if (existing.kind === "ai_chat")
+      return res
+        .status(403)
+        .json({
+          error: "Tutor history cannot be edited through this endpoint",
+        });
     if (existing.kind === "submission" && actor.role === "student")
       return res.status(403).json({
         error: "Use the validated submission workflow to save your work",

@@ -1,4 +1,6 @@
 import { VisualPreview } from "./VisualPreview";
+import { AiTutor, type TutorContext } from "./AiTutor";
+import { useLearningTime } from "../hooks/useLearningTime";
 import { LearningTools, hasLearningTool } from "./labs/LearningTools";
 import { ActivityDeliveryStatus } from "./ActivityDeliveryStatus";
 import { sourceDigest, normalizeOutput } from "../platform/run-evidence";
@@ -142,6 +144,7 @@ function newQuestion(index = 0): AssessmentQuestion {
 export function AssignmentWorkspace({
   assignment,
   practiceOnly = false,
+  tutorContext,
   submission,
   session,
   theme,
@@ -150,6 +153,7 @@ export function AssignmentWorkspace({
   onSaved,
 }: {
   practiceOnly?: boolean;
+  tutorContext?: TutorContext;
   assignment: AssignmentRecord;
   submission?: LearningRecord;
   session: AuthSession;
@@ -307,6 +311,16 @@ export function AssignmentWorkspace({
     Boolean(submission && submission.status !== "draft"),
   );
   const [notice, setNotice] = useState("");
+  useLearningTime(
+    session.user.role === "student" && !locked && type !== "assessment",
+    {
+      userId: session.user.id,
+      courseId:
+        assignmentCourse(assignment) === "JAVA" ? "course-java" : "course-dbms",
+      assignmentId: assignment.id,
+    },
+    onEvent,
+  );
   const [error, setError] = useState("");
   const [output, setOutput] = useState({
     status: "idle" as "idle" | "passed" | "failed" | "error",
@@ -658,6 +672,29 @@ export function AssignmentWorkspace({
             : `Due ${dueLabel(assignment.due_date)}`}
         </span>
       </header>
+      {session.user.role === "student" &&
+        type !== "assessment" &&
+        (tutorContext || !practiceOnly) && (
+          <AiTutor
+            session={session}
+            context={tutorContext || { kind: "assignment", id: assignment.id }}
+            work={{
+              answer: isCoding ? "" : body,
+              code: isCoding ? body : "",
+              input: stdin,
+              output:
+                (lastRun?.code === body &&
+                lastRun.input === stdin &&
+                lastRun.context === runtimeContext
+                  ? "Current run: "
+                  : "Earlier run; work may have changed: ") + actualOutput,
+              selections: answers,
+              observations: labReport,
+              evidence: labEvidence,
+            }}
+          />
+        )}
+
       {(error || proctor.warning) && (
         <div className="flex items-start gap-2 rounded-lg border border-rose-300 bg-rose-500/8 px-4 py-3 text-sm text-rose-600">
           <CircleAlert size={18} className="mt-0.5 shrink-0" />

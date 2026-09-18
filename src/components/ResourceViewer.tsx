@@ -1,4 +1,5 @@
 import { ResourcePractice } from "./ResourcePractice";
+import { AiTutor } from "./AiTutor";
 import type { AuthSession } from "../platform/types";
 import {
   BookOpen,
@@ -291,6 +292,13 @@ export function ResourceViewer({
           theme={theme}
           onEvent={onEvent}
         />
+        {session.user.role === "student" && (
+          <AiTutor
+            key={`tutor-${selected.id}`}
+            session={session}
+            context={{ kind: "resource", id: selected.id }}
+          />
+        )}
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <div className="panel p-4">
             <span className="text-xs text-[var(--muted)]">Curriculum</span>

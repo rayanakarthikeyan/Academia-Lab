@@ -13,6 +13,8 @@ import bootstrapAdmin from "../api/_bootstrap-admin.js";
 import register from "../api/_register.js";
 import platform from "../api/_platform.js";
 import codeRunner from "../api/_code-runner.js";
+import aiChat from "../api/_ai-chat.js";
+import aiChatLogs from "../api/_ai-chat-logs.js";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -25,6 +27,8 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const PORT = Number(process.env.PORT ?? 8787);
 
 const routes = {
+  "/api/ai-chat": aiChat,
+  "/api/ai-chat-logs": aiChatLogs,
   "/api/health": health,
   "/api/login": login,
   "/api/summary": summary,

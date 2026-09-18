@@ -60,6 +60,11 @@ export function ResourcePractice({
         <AssignmentWorkspace
           key={selected.id}
           practiceOnly
+          tutorContext={{
+            kind: "resource",
+            id: resource.id,
+            questionId: selected.id,
+          }}
           assignment={assignmentFor(selected)}
           session={session}
           theme={theme}
