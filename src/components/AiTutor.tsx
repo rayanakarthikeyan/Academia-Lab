@@ -120,6 +120,8 @@ export function AiTutor({
     currentKey = useRef(key);
   currentKey.current = key;
   const latest = useRef(work);
+  const conversation = useRef<HTMLDivElement>(null);
+  const scrollToLatest = useRef(true);
   latest.current = work;
   const load = async (offset = 0) => {
     setBusy(true);
@@ -130,6 +132,7 @@ export function AiTutor({
         `ai-chat?${new URLSearchParams({ ...context, offset: String(offset) })}`,
       );
       if (currentKey.current === key) {
+        scrollToLatest.current = offset === 0;
         const loaded = Array.isArray(data.records) ? data.records : [];
         setRecords((rows) => (offset ? [...rows, ...loaded] : loaded));
         setMore(data.hasMore);
@@ -147,6 +150,10 @@ export function AiTutor({
     setError("");
     if (open) void load();
   }, [key, session.token, open]);
+  useEffect(() => {
+    if (scrollToLatest.current && conversation.current)
+      conversation.current.scrollTop = conversation.current.scrollHeight;
+  }, [records]);
   const send = async () => {
     if (!message.trim() || busy) return;
     setBusy(true);
@@ -158,6 +165,7 @@ export function AiTutor({
         work: { ...latest.current, excerpt },
       });
       if (currentKey.current === key) {
+        scrollToLatest.current = true;
         setRecords((rows) => [data.record, ...rows]);
         setMessage("");
       }
@@ -188,6 +196,31 @@ export function AiTutor({
             Conversations and work snapshots are saved for faculty review. AI
             can make mistakes; verify its guidance.
           </p>
+          <div
+            ref={conversation}
+            role="log"
+            aria-label="Tutor conversation"
+            className="max-h-[480px] min-h-24 overflow-auto space-y-3"
+            aria-live="polite"
+          >
+            {more && (
+              <button
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => void load(records.length)}
+              >
+                Load older messages
+              </button>
+            )}
+            {[...records].reverse().map((row) => (
+              <TutorExchange key={row.id} row={row} />
+            ))}
+            {!records.length && !busy && (
+              <p className="text-sm text-[var(--muted)]">
+                Ask a question to start your conversation.
+              </p>
+            )}
+          </div>
           {context.kind === "resource" && (
             <div className="block text-sm">
               <label htmlFor={`${fieldId}-excerpt`}>
@@ -241,23 +274,6 @@ export function AiTutor({
             <p role="alert" className="text-sm text-rose-600">
               {error}
             </p>
-          )}
-          <div
-            className="max-h-[480px] overflow-auto space-y-3"
-            aria-live="polite"
-          >
-            {records.map((row) => (
-              <TutorExchange key={row.id} row={row} />
-            ))}
-          </div>
-          {more && (
-            <button
-              className="secondary-button"
-              disabled={busy}
-              onClick={() => void load(records.length)}
-            >
-              Load older messages
-            </button>
           )}
         </>
       )}

@@ -78,6 +78,16 @@ try {
   assert.equal(sent[0].work.code, "SELECT 6 + 7;");
   await page.getByRole("button", { name: "Refresh history" }).click();
   assert.equal(await page.getByText(/Asha, compare/).count(), 1);
+  const conversationBox = await page
+    .getByRole("log", { name: "Tutor conversation" })
+    .boundingBox();
+  const composerBox = await page
+    .getByLabel("Your question", { exact: true })
+    .boundingBox();
+  assert.ok(
+    composerBox.y >= conversationBox.y + conversationBox.height,
+    "Message box follows the conversation",
+  );
   await page.clock.runFor(35000);
   assert.ok(
     events.some(
@@ -102,6 +112,15 @@ try {
     .fill("Explain this passage");
   await page.getByRole("button", { name: "Ask tutor", exact: true }).click();
   await page.getByText(/Explain this passage/).waitFor();
+  const questions = await page
+    .getByRole("log", { name: "Tutor conversation" })
+    .locator("article > p:first-child")
+    .allTextContents();
+  assert.ok(questions[0].includes("Why does this return 13?"));
+  assert.ok(
+    questions[1].includes("Explain this passage"),
+    "Newest message appears last",
+  );
   assert.equal(sent.at(-1).work.excerpt, "SQL arithmetic adds numbers");
   await page.goto(base + "/scripts/fixtures/tutor.html?faculty=1");
   await page
