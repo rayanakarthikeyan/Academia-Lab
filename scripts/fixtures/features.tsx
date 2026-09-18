@@ -4,6 +4,7 @@ import { ResourcePractice } from "../../src/components/ResourcePractice";
 import { AssignmentWorkspace } from "../../src/components/CourseworkManager";
 import { FacultyResourceManager } from "../../src/components/FacultyResourceManager";
 import { FacultyLabWorkspace } from "../../src/components/FacultyLabWorkspace";
+import { FacultyInteractiveLabs } from "../../src/components/FacultyInteractiveLabs";
 import { visualStarter } from "../../src/platform/visual-labs";
 import type { AuthSession, LearningResource } from "../../src/platform/types";
 import "../../src/styles.css";
@@ -113,6 +114,13 @@ function Harness() {
     return (
       <FacultyLabWorkspace
         session={{ ...session, user: { ...session.user, role: "faculty" } }}
+      />
+    );
+  if (location.hash === "#interactive")
+    return (
+      <FacultyInteractiveLabs
+        session={{ ...session, user: { ...session.user, role: "faculty" } }}
+        theme="light"
       />
     );
   return (

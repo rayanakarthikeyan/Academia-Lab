@@ -32,6 +32,7 @@ import { TesterDrafts } from "./components/TesterDrafts";
 import { CourseworkManager } from "./components/CourseworkManager";
 import { FacultyAnalytics } from "./components/FacultyAnalytics";
 import { FacultyLabWorkspace } from "./components/FacultyLabWorkspace";
+import { FacultyInteractiveLabs } from "./components/FacultyInteractiveLabs";
 import { FacultyResourceManager } from "./components/FacultyResourceManager";
 import { FacultyEnrollmentManager } from "./components/FacultyEnrollmentManager";
 import { ResourceViewer } from "./components/ResourceViewer";
@@ -70,6 +71,7 @@ type ViewId =
   | "assessment"
   | "resources"
   | "lab-workspace"
+  | "interactive-lab"
   | "telemetry"
   | "enrollment"
   | "settings";
@@ -86,6 +88,7 @@ const facultyNavigation: NavItem[] = [
   { id: "enrollment", label: "Enrollment management", icon: Users },
   { id: "resources", label: "Theory resources", icon: FileStack },
   { id: "lab-workspace", label: "Lab Workspace", icon: FlaskConical },
+  { id: "interactive-lab", label: "Interactive Lab", icon: Command },
   { id: "coursework", label: "Practice", icon: ClipboardList },
   { id: "assessment", label: "Assessments", icon: ClipboardCheck },
   { id: "telemetry", label: "Student insights", icon: BarChart3 },
@@ -98,6 +101,10 @@ const adminNavigation: NavItem[] = [
 
 function pageTitle(view: ViewId) {
   const titles: Record<ViewId, [string, string]> = {
+    "interactive-lab": [
+      "Interactive Lab",
+      "Preview visual activities and enable them after the manual lab.",
+    ],
     "faculty-drafts": [
       "Faculty draft experiments",
       "Preview saved experiments before they are assigned to students.",
@@ -489,6 +496,8 @@ export default function App() {
       );
     if (view === "lab-workspace")
       return <FacultyLabWorkspace session={session} />;
+    if (view === "interactive-lab" && !isStudent)
+      return <FacultyInteractiveLabs session={session} theme={theme} />;
     if (view === "resources")
       return (
         <FacultyResourceManager

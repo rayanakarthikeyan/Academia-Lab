@@ -46,6 +46,19 @@ try {
   const faculty = await context.newPage(),
     student = await context.newPage();
   await faculty.goto(base + "/scripts/fixtures/features.html#labs");
+  await faculty.getByText("Traffic Lights", { exact: true }).waitFor();
+  assert.equal(
+    await faculty.getByText("Preview interactive lab", { exact: true }).count(),
+    0,
+  );
+  assert.equal(
+    await faculty
+      .getByRole("button", { name: /enable interactive activity/ })
+      .count(),
+    0,
+  );
+  await faculty.goto(base + "/scripts/fixtures/features.html#interactive");
+  await faculty.reload();
   await student.goto(
     base + "/scripts/fixtures/features.html?disabled=1#assigned-lab",
   );
