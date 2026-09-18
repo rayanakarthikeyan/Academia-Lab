@@ -40,6 +40,17 @@ try {
   await p
     .getByLabel("Your question", { exact: true })
     .fill("Help me add two values");
+  await p
+    .getByRole("button", { name: "AI Tutor · Close", exact: true })
+    .click();
+  await p
+    .getByRole("button", { name: "AI Tutor · Ask for guidance", exact: true })
+    .click();
+  assert.equal(
+    await p.getByLabel("Your question", { exact: true }).inputValue(),
+    "Help me add two values",
+    "Closing the tutor must retain an unsent question",
+  );
   for (const width of [1440, 1280, 768, 390, 320]) {
     await p.setViewportSize({ width, height: 1100 });
     assert.ok(

@@ -116,7 +116,7 @@ export function AiTutor({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [more, setMore] = useState(false);
-  const key = JSON.stringify(context),
+  const key = JSON.stringify([session.user.id, context]),
     currentKey = useRef(key);
   currentKey.current = key;
   const latest = useRef(work);
@@ -148,6 +148,8 @@ export function AiTutor({
     setMessage("");
     setExcerpt("");
     setError("");
+  }, [key, session.token]);
+  useEffect(() => {
     if (open) void load();
   }, [key, session.token, open]);
   useEffect(() => {
