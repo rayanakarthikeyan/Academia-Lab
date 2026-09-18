@@ -222,7 +222,9 @@ export function AssignmentWorkspace({
   const interactive =
     type !== "assessment" &&
     hasLearningTool(assignment.curriculum_item_id) &&
-    (practiceOnly || interactiveEnabled);
+    ((practiceOnly &&
+      (session.user.isTester || session.user.role !== "student")) ||
+      (!practiceOnly && interactiveEnabled));
   const [labReport, setLabReport] = useState(() =>
     String(
       submission?.metadata?.lab_report ||
@@ -637,8 +639,35 @@ export function AssignmentWorkspace({
   const actualOutput = [output.stdout, output.stderr]
     .filter(Boolean)
     .join("\n");
+  const hasTutor =
+    session.user.role === "student" &&
+    type !== "assessment" &&
+    Boolean(tutorContext || !practiceOnly);
+  const tutorPanel = session.user.role === "student" &&
+    type !== "assessment" &&
+    (tutorContext || !practiceOnly) && (
+      <AiTutor
+        docked
+        session={session}
+        context={tutorContext || { kind: "assignment", id: assignment.id }}
+        work={{
+          answer: isCoding ? "" : body,
+          code: isCoding ? body : "",
+          input: stdin,
+          output:
+            (lastRun?.code === body &&
+            lastRun.input === stdin &&
+            lastRun.context === runtimeContext
+              ? "Current run: "
+              : "Earlier run; work may have changed: ") + actualOutput,
+          selections: answers,
+          observations: labReport,
+          evidence: labEvidence,
+        }}
+      />
+    );
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4">
+    <div className="mx-auto max-w-[1800px] space-y-4">
       <header className="flex flex-wrap items-center gap-3 border-b border-[var(--line)] pb-4">
         <button className="secondary-button" onClick={onBack} type="button">
           <ArrowLeft size={16} />
@@ -672,43 +701,12 @@ export function AssignmentWorkspace({
             : `Due ${dueLabel(assignment.due_date)}`}
         </span>
       </header>
-      {session.user.role === "student" &&
-        type !== "assessment" &&
-        (tutorContext || !practiceOnly) && (
-          <AiTutor
-            session={session}
-            context={tutorContext || { kind: "assignment", id: assignment.id }}
-            work={{
-              answer: isCoding ? "" : body,
-              code: isCoding ? body : "",
-              input: stdin,
-              output:
-                (lastRun?.code === body &&
-                lastRun.input === stdin &&
-                lastRun.context === runtimeContext
-                  ? "Current run: "
-                  : "Earlier run; work may have changed: ") + actualOutput,
-              selections: answers,
-              observations: labReport,
-              evidence: labEvidence,
-            }}
-          />
-        )}
-
       {(error || proctor.warning) && (
         <div className="flex items-start gap-2 rounded-lg border border-rose-300 bg-rose-500/8 px-4 py-3 text-sm text-rose-600">
           <CircleAlert size={18} className="mt-0.5 shrink-0" />
           {error || proctor.warning}
         </div>
       )}
-      {!practiceOnly &&
-        hasLearningTool(assignment.curriculum_item_id) &&
-        !interactiveEnabled && (
-          <p className="panel p-4 text-sm">
-            Complete the manual lab first. Your faculty will enable the
-            interactive activity when ready.
-          </p>
-        )}
       {interactive && (
         <details open className="panel p-4">
           <summary className="font-semibold cursor-pointer">
@@ -771,9 +769,12 @@ export function AssignmentWorkspace({
       )}
 
       <div
-        className={`grid gap-4 ${isCoding ? "xl:grid-cols-[minmax(220px,0.75fr)_minmax(360px,1.5fr)_minmax(280px,1fr)]" : "xl:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)]"}`}
+        className={`grid gap-4 ${isCoding ? (hasTutor ? "xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.5fr)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)]" : "xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.5fr)_minmax(0,1fr)]") : "xl:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)]"}`}
       >
-        <aside className="panel h-fit p-5">
+        <aside
+          aria-label="Experiment instructions"
+          className="panel min-w-0 h-fit p-5"
+        >
           <p className="text-xs font-bold uppercase tracking-[.14em] text-cyan-600">
             {type === "lab" ? "Experiment brief" : "Instructions"}
           </p>
@@ -1109,119 +1110,130 @@ export function AssignmentWorkspace({
             )}
           </footer>
         </section>
-        {isCoding && (
-          <aside
-            aria-label="Program output"
-            className="panel min-w-0 overflow-hidden h-fit"
-          >
-            <div className="p-4 space-y-3 border-b border-[var(--line)]">
-              <h3 className="font-semibold text-sm">Output and verification</h3>
-              <p className="text-xs text-[var(--muted)]">
-                Run uses your input. Sample checks compare faculty-provided
-                examples; they do not prove the entire solution is correct.
-              </p>
-              {lastRun &&
-                (lastRun.code !== body ||
-                  lastRun.input !== stdin ||
-                  lastRun.context !== runtimeContext) && (
-                  <p className="text-xs text-amber-600">
-                    Code, input, files or engine changed after the last run. Run
-                    again for current output.
+        <div
+          className={
+            isCoding
+              ? "min-w-0 grid gap-4 content-start 2xl:contents"
+              : "min-w-0 xl:col-span-2"
+          }
+        >
+          {isCoding && (
+            <aside
+              aria-label="Program output"
+              className="panel min-w-0 overflow-hidden h-fit"
+            >
+              <div className="p-4 space-y-3 border-b border-[var(--line)]">
+                <h3 className="font-semibold text-sm">
+                  Output and verification
+                </h3>
+                <p className="text-xs text-[var(--muted)]">
+                  Run uses your input. Sample checks compare faculty-provided
+                  examples; they do not prove the entire solution is correct.
+                </p>
+                {lastRun &&
+                  (lastRun.code !== body ||
+                    lastRun.input !== stdin ||
+                    lastRun.context !== runtimeContext) && (
+                    <p className="text-xs text-amber-600">
+                      Code, input, files or engine changed after the last run.
+                      Run again for current output.
+                    </p>
+                  )}
+                {!external && !visual && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      running ||
+                      !(assignment.test_cases || []).some(
+                        (test) => !test.hidden && test.output.trim(),
+                      )
+                    }
+                    onClick={() => void checkSamples()}
+                  >
+                    Check sample cases
+                  </button>
+                )}
+                {sampleChecks && (
+                  <p role="status" className="text-xs">
+                    {sampleChecks.code === body &&
+                    sampleChecks.context === runtimeContext
+                      ? `${sampleChecks.passed}/${sampleChecks.total} sample cases matched.`
+                      : "Code changed; check the samples again."}{" "}
+                    Faculty reviews the solution logic.
                   </p>
                 )}
-              {!external && !visual && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={
-                    running ||
-                    !(assignment.test_cases || []).some(
-                      (test) => !test.hidden && test.output.trim(),
-                    )
-                  }
-                  onClick={() => void checkSamples()}
-                >
-                  Check sample cases
-                </button>
-              )}
-              {sampleChecks && (
-                <p role="status" className="text-xs">
-                  {sampleChecks.code === body &&
-                  sampleChecks.context === runtimeContext
-                    ? `${sampleChecks.passed}/${sampleChecks.total} sample cases matched.`
-                    : "Code changed; check the samples again."}{" "}
-                  Faculty reviews the solution logic.
-                </p>
-              )}
-            </div>
-            {visual && <VisualPreview code={body} />}
-            {language === "java" && <JavaDownloads files={outputFiles} />}
-            {isCoding && (
-              <div className="border-t border-[var(--line)]">
-                <div className="flex h-10 items-center border-b border-[var(--line)] px-3">
-                  <button
-                    className={`lab-tab ${bottomTab === "output" ? "active" : ""}`}
-                    onClick={() => setBottomTab("output")}
-                    type="button"
-                  >
-                    <Code2 size={14} />
-                    Output & checks
-                  </button>
-                  <button
-                    className={`lab-tab ${bottomTab === "timeline" ? "active" : ""}`}
-                    onClick={() => setBottomTab("timeline")}
-                    type="button"
-                  >
-                    <History size={14} />
-                    Timeline <span>{telemetry.timeline.length}</span>
-                  </button>
-                </div>
-                {bottomTab === "output" ? (
-                  <div className="grid min-h-32">
-                    <div className="border-b border-[var(--line)] p-4 sm:border-b-0 sm:border-r">
-                      <p className="mb-2 text-[10px] font-bold uppercase text-[var(--muted)]">
-                        Reference output (sample input)
-                      </p>
-                      <pre className="whitespace-pre-wrap text-xs leading-5 text-[var(--ink)]">
-                        {expectedOutput}
-                      </pre>
-                    </div>
-                    <div className="p-4">
-                      <p className="mb-2 text-[10px] font-bold uppercase text-[var(--muted)]">
-                        Actual output
-                      </p>
-                      <pre
-                        className={`whitespace-pre-wrap text-xs leading-5 ${output.status === "passed" ? "text-emerald-600" : output.status === "idle" ? "text-[var(--muted)]" : "text-rose-600"}`}
-                      >
-                        {running ? runPhase : actualOutput}
-                      </pre>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="max-h-[600px] overflow-y-auto p-3">
-                    {telemetry.timeline.length === 0 ? (
-                      <p className="p-4 text-center text-xs text-[var(--muted)]">
-                        Run or edit code to build an attempt timeline.
-                      </p>
-                    ) : (
-                      telemetry.timeline.toReversed().map((item) => (
-                        <div
-                          className="border-b border-[var(--line)] px-2 py-2 text-xs last:border-0"
-                          key={item.id}
-                        >
-                          <strong>{item.label}</strong>
-                          <p className="mt-1 truncate text-[var(--muted)]">
-                            {item.detail}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
               </div>
-            )}
-          </aside>
-        )}
+              {visual && <VisualPreview code={body} />}
+              {language === "java" && <JavaDownloads files={outputFiles} />}
+              {isCoding && (
+                <div className="border-t border-[var(--line)]">
+                  <div className="flex h-10 items-center border-b border-[var(--line)] px-3">
+                    <button
+                      className={`lab-tab ${bottomTab === "output" ? "active" : ""}`}
+                      onClick={() => setBottomTab("output")}
+                      type="button"
+                    >
+                      <Code2 size={14} />
+                      Output & checks
+                    </button>
+                    <button
+                      className={`lab-tab ${bottomTab === "timeline" ? "active" : ""}`}
+                      onClick={() => setBottomTab("timeline")}
+                      type="button"
+                    >
+                      <History size={14} />
+                      Timeline <span>{telemetry.timeline.length}</span>
+                    </button>
+                  </div>
+                  {bottomTab === "output" ? (
+                    <div className="grid min-h-32">
+                      <div className="border-b border-[var(--line)] p-4 sm:border-b-0 sm:border-r">
+                        <p className="mb-2 text-[10px] font-bold uppercase text-[var(--muted)]">
+                          Reference output (sample input)
+                        </p>
+                        <pre className="whitespace-pre-wrap text-xs leading-5 text-[var(--ink)]">
+                          {expectedOutput}
+                        </pre>
+                      </div>
+                      <div className="p-4">
+                        <p className="mb-2 text-[10px] font-bold uppercase text-[var(--muted)]">
+                          Actual output
+                        </p>
+                        <pre
+                          className={`whitespace-pre-wrap text-xs leading-5 ${output.status === "passed" ? "text-emerald-600" : output.status === "idle" ? "text-[var(--muted)]" : "text-rose-600"}`}
+                        >
+                          {running ? runPhase : actualOutput}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="max-h-[600px] overflow-y-auto p-3">
+                      {telemetry.timeline.length === 0 ? (
+                        <p className="p-4 text-center text-xs text-[var(--muted)]">
+                          Run or edit code to build an attempt timeline.
+                        </p>
+                      ) : (
+                        telemetry.timeline.toReversed().map((item) => (
+                          <div
+                            className="border-b border-[var(--line)] px-2 py-2 text-xs last:border-0"
+                            key={item.id}
+                          >
+                            <strong>{item.label}</strong>
+                            <p className="mt-1 truncate text-[var(--muted)]">
+                              {item.detail}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </aside>
+          )}
+          {tutorPanel}
+        </div>
       </div>
     </div>
   );

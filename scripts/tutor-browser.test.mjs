@@ -60,7 +60,12 @@ try {
   await page.locator(".monaco-editor .view-lines").click();
   await page.keyboard.press("Control+A");
   await page.keyboard.insertText("SELECT 6 + 7;");
-  await page.getByRole("button", { name: /AI Tutor/ }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: /AI Tutor/ })
+      .getAttribute("aria-expanded"),
+    "true",
+  );
   await page
     .getByLabel("Your question", { exact: true })
     .fill("Why does this return 13?");

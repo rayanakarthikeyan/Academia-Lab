@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { AuthSession } from "../platform/types";
 
 export type TutorContext = {
@@ -101,12 +101,15 @@ export function AiTutor({
   session,
   context,
   work = {},
+  docked = false,
 }: {
   session: AuthSession;
   context: TutorContext;
   work?: Record<string, unknown>;
+  docked?: boolean;
 }) {
-  const [open, setOpen] = useState(false),
+  const fieldId = useId();
+  const [open, setOpen] = useState(docked),
     [records, setRecords] = useState<TutorRecord[]>([]),
     [message, setMessage] = useState(""),
     [excerpt, setExcerpt] = useState(""),
@@ -127,9 +130,8 @@ export function AiTutor({
         `ai-chat?${new URLSearchParams({ ...context, offset: String(offset) })}`,
       );
       if (currentKey.current === key) {
-        setRecords((rows) =>
-          offset ? [...rows, ...data.records] : data.records,
-        );
+        const loaded = Array.isArray(data.records) ? data.records : [];
+        setRecords((rows) => (offset ? [...rows, ...loaded] : loaded));
         setMore(data.hasMore);
       }
     } catch (e) {
@@ -187,16 +189,19 @@ export function AiTutor({
             can make mistakes; verify its guidance.
           </p>
           {context.kind === "resource" && (
-            <label className="block text-sm">
-              Relevant passage from the resource
+            <div className="block text-sm">
+              <label htmlFor={`${fieldId}-excerpt`}>
+                Relevant passage from the resource
+              </label>
               <textarea
+                id={`${fieldId}-excerpt`}
                 className="input-field mt-2 w-full"
                 maxLength={10000}
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
                 placeholder="Paste the passage you need help with. The tutor cannot read the linked document or video automatically."
               />
-            </label>
+            </div>
           )}
           <form
             onSubmit={(e) => {
@@ -205,9 +210,10 @@ export function AiTutor({
             }}
             className="space-y-2"
           >
-            <label className="block text-sm">
-              Your question
+            <div className="block text-sm">
+              <label htmlFor={`${fieldId}-question`}>Your question</label>
               <textarea
+                id={`${fieldId}-question`}
                 className="input-field mt-2 w-full"
                 maxLength={3000}
                 value={message}
@@ -215,7 +221,7 @@ export function AiTutor({
                 placeholder="Explain where you are stuck…"
                 disabled={busy}
               />
-            </label>
+            </div>
             <button
               className="primary-button"
               disabled={busy || !message.trim()}

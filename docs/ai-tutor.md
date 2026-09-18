@@ -1,6 +1,8 @@
 # Contextual AI Tutor and student insights
 
-Students open **AI Tutor → Ask for guidance** inside assigned labs, practice/theory work and study resources. Tester previews can use the tutor for saved faculty drafts. Proctored assessments are excluded in both the UI and API.
+The AI Tutor opens alongside the student workspace: instructions, IDE, output, then tutor on wide screens. Smaller desktops place the tutor below output in the right rail; tablets and phones stack the panels in that order. Students can collapse the tutor. Study resources retain the **AI Tutor → Ask for guidance** control. Tester previews can use the tutor for saved faculty drafts. Proctored assessments are excluded in both the UI and API.
+
+Interactive lab activities and their disabled notices are hidden from students until faculty enables the assigned experiment. Faculty and tester draft previews remain available. Ordinary student practice cannot bypass the release gate.
 
 The server resolves the current assignment, resource or saved draft and checks access before retrieving history or contacting Gemini. Prompts include the authenticated student's name, original instructions, visible questions, hints, the current work snapshot and the last 12 answered exchanges in the same activity. Hidden tests and answer keys are excluded. The browser's claimed instructions, identity and conversation history are never trusted.
 

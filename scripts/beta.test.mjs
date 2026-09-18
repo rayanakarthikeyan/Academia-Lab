@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 const suites = [
   "tutor-workflow",
   "tutor-browser",
+  "workspace-layout",
   "workflow",
   "tester-workflow",
   "features-browser",

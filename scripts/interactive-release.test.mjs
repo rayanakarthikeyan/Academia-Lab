@@ -55,7 +55,10 @@ try {
       .count(),
     0,
   );
-  await student.getByText(/Complete the manual lab first/).waitFor();
+  assert.equal(
+    await student.getByText(/Complete the manual lab first/).count(),
+    0,
+  );
   const card = faculty
     .locator("article")
     .filter({ has: faculty.getByText("Traffic Lights", { exact: true }) });
@@ -74,7 +77,9 @@ try {
     .getByRole("button", { name: "Disable interactive activity", exact: true })
     .click();
   await student.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await student.getByText(/Complete the manual lab first/).waitFor();
+  await student
+    .getByText("Interactive lab experiment", { exact: true })
+    .waitFor({ state: "hidden" });
   assert.equal(
     await student
       .getByText("Interactive lab experiment", { exact: true })
