@@ -72,7 +72,7 @@ try {
     (process.env.TEST_BASE_URL || "http://127.0.0.1:5176") +
       "/scripts/fixtures/video.html",
   );
-  await p.getByText(/Play this video inside Experivio/).waitFor();
+  await p.getByText(/Play this video inside CogniXplore/).waitFor();
   await p.clock.runFor(50);
   assert.ok(
     await p.evaluate(

@@ -46,7 +46,7 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal(student.user.department, "CSE");
   assert.equal(student.user.section, "A");
   assert.equal(student.user.contact_number, "9876543210");
-  assert.equal(student.user.college, "Experivio");
+  assert.equal(student.user.college, "CogniXplore");
   assert.equal(student.user.password_hash, undefined);
   assert.equal((await call(register, "POST", profile)).status, 409);
   await createSupabaseClient().from("course_cohorts").insert(["course-java","course-dbms"].map(course_id=>({id:`cohort-${course_id}`,course_id,target_audience:"cohort",department:"CSE",academic_year:"2",sections:["A"]})));

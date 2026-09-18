@@ -6,13 +6,18 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig(({ mode }) => {
   const name =
     loadEnv(mode, process.cwd(), "VITE_").VITE_APP_NAME?.trim() || brand.name;
-  const escapedName = name.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        character
-      ]!,
-  );
+  const escapeHtml = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (character) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[character]!,
+    );
   return {
     base: "/",
     optimizeDeps: { exclude: ["@electric-sql/pglite"] },
@@ -23,7 +28,13 @@ export default defineConfig(({ mode }) => {
       {
         name: "platform-brand",
         transformIndexHtml(html) {
-          return html.replaceAll("__APP_NAME__", escapedName);
+          const title = `${name}: ${brand.subtitle}`;
+          return html
+            .replaceAll("__APP_TITLE__", escapeHtml(title))
+            .replaceAll(
+              "__APP_DESCRIPTION__",
+              escapeHtml(`${title}. ${brand.tagline}`),
+            );
         },
       },
     ],

@@ -1,12 +1,16 @@
-# Experivio
+# CogniXplore
 
-Live beta: [experivio.vercel.app](https://experivio.vercel.app).
+**CogniXplore: An Experiential Learning Platform Powered by Cognitive Visualization**
+
+Visualize. Experience. Explore. Learn.
+
+Live beta: [cognixplore.vercel.app](https://cognixplore.vercel.app).
 
 Students can use the contextual AI Tutor in labs, practice and resources; faculty can review saved chats, shared work and tutor-usage insights. See [AI Tutor and student insights](docs/ai-tutor.md) for context handling, privacy, learning-time measurement and testing.
 
 ## Beta release
 
-Experivio **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.
+CogniXplore **1.0.0-beta.1** is a supervised teaching beta. See [beta release notes and verification](docs/beta-release.md) and [the 31-experiment compatibility audit](docs/syllabus-coverage.md). All syllabus experiments have a learning path, but Java GUI/Applet activities use labeled simulations and SQL uses SQLite/PostgreSQL rather than Oracle. No Docker or system runtime installation is required.
 
 The workspace now has instructions on the left, code and personal input in the middle, and output/sample checks on the right (stacked on smaller screens). Sample checks compare exact reference output; faculty must provide console output including SQL headings, rather than descriptive observations, for meaningful comparisons. They are client-reported checks, not authoritative grading.
 

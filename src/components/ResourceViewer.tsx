@@ -1,4 +1,5 @@
 import { ResourcePractice } from "./ResourcePractice";
+import { APP_NAME } from "../platform/branding";
 import { AiTutor } from "./AiTutor";
 import type { AuthSession } from "../platform/types";
 import {
@@ -93,7 +94,7 @@ function VideoPlayer({
   return (
     <div>
       <p className="mb-3 text-sm text-[var(--muted)]">
-        Play this video inside Experivio to record your watch time. If you open
+        Play this video inside {APP_NAME} to record your watch time. If you open
         it on YouTube or in another app, that watch time will not appear in your
         learning report or your faculty’s report.
       </p>

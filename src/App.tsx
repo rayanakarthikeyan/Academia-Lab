@@ -1,4 +1,9 @@
-import { APP_NAME, RELEASE_LABEL } from "./platform/branding";
+import {
+  APP_NAME,
+  APP_TITLE,
+  APP_TAGLINE,
+  RELEASE_LABEL,
+} from "./platform/branding";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -548,6 +553,7 @@ export default function App() {
           <button
             className="flex items-center gap-3 text-left"
             onClick={() => setView("dashboard")}
+            title={APP_TITLE}
             type="button"
           >
             <span className="grid size-10 place-items-center rounded-lg bg-cyan-400 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,.2)]">
@@ -558,7 +564,7 @@ export default function App() {
                 {APP_NAME}
               </strong>
               <span className="text-xs text-[var(--muted)]">
-                Academic Learning Platform · {RELEASE_LABEL}
+                {APP_TAGLINE} · {RELEASE_LABEL}
               </span>
             </span>
           </button>

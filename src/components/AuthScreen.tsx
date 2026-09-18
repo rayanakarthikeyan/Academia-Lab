@@ -1,4 +1,9 @@
-import { APP_NAME, RELEASE_LABEL } from "../platform/branding";
+import {
+  APP_NAME,
+  APP_TITLE,
+  APP_TAGLINE,
+  RELEASE_LABEL,
+} from "../platform/branding";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -88,9 +93,7 @@ export function AuthScreen({
               <strong className="block text-base text-[var(--ink)]">
                 {APP_NAME}
               </strong>
-              <span className="text-xs text-[var(--muted)]">
-                Academic Learning Platform
-              </span>
+              <span className="text-xs text-[var(--muted)]">{APP_TAGLINE}</span>
             </div>
           </div>
 
@@ -105,11 +108,10 @@ export function AuthScreen({
                 Learning, measured with purpose
               </span>
               <h1 className="max-w-[600px] text-5xl font-semibold leading-[1.08] text-[var(--ink)] xl:text-6xl">
-                Theory becomes practice here.
+                {APP_TAGLINE}
               </h1>
               <p className="mt-6 max-w-[560px] text-lg leading-8 text-[var(--muted)]">
-                The academic workspace for {APP_NAME} students, with guided
-                theory, practice, proctored assessment, and instrumented labs.
+                {APP_TITLE}
               </p>
             </motion.div>
             <div className="mt-12 grid grid-cols-3 gap-4">
@@ -159,10 +161,13 @@ export function AuthScreen({
               <div>
                 <strong className="block">{APP_NAME}</strong>
                 <span className="text-xs text-[var(--muted)]">
-                  Academic Learning Platform
+                  {APP_TAGLINE}
                 </span>
               </div>
             </div>
+            <p className="mb-5 text-sm leading-6 text-[var(--muted)] lg:hidden">
+              {APP_TITLE}
+            </p>
             <p className="text-xs font-bold uppercase tracking-[.18em] text-[var(--accent)]">
               Secure access · {RELEASE_LABEL}
             </p>
