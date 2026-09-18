@@ -38,6 +38,8 @@ export function useEditorTelemetry({
   const lastValue = useRef("");
   const characterDelta = useRef(0);
   const pendingChanges = useRef(0);
+  const previousRun = useRef<{ digest?: string; status: string } | null>(null);
+  const editsAtRun = useRef(0);
 
   const log = useCallback(
     (kind: ActivityLog["kind"], metadata: Record<string, unknown>) => {
@@ -80,7 +82,25 @@ export function useEditorTelemetry({
       const next = value || "";
       changes.current += 1;
       pendingChanges.current += 1;
-      const delta = Math.abs(next.length - lastValue.current.length);
+      const before = lastValue.current;
+      let start = 0;
+      while (
+        start < before.length &&
+        start < next.length &&
+        before[start] === next[start]
+      )
+        start++;
+      let endBefore = before.length,
+        endNext = next.length;
+      while (
+        endBefore > start &&
+        endNext > start &&
+        before[endBefore - 1] === next[endNext - 1]
+      ) {
+        endBefore--;
+        endNext--;
+      }
+      const delta = endBefore - start + endNext - start;
       characterDelta.current += delta;
       lastValue.current = next;
       if (pendingChanges.current >= 25) flushEdits();
@@ -122,7 +142,20 @@ export function useEditorTelemetry({
         ]);
       };
       node.addEventListener("paste", onPaste);
-      instance.onDidDispose(() => node.removeEventListener("paste", onPaste));
+      const onCopy = () => {
+        const selection = instance.getSelection();
+        log("editor_change", {
+          action: "code_copy",
+          characterCount: selection
+            ? instance.getModel()?.getValueInRange(selection).length || 0
+            : 0,
+        });
+      };
+      node.addEventListener("copy", onCopy);
+      instance.onDidDispose(() => {
+        node.removeEventListener("paste", onPaste);
+        node.removeEventListener("copy", onCopy);
+      });
     },
     [log],
   );
@@ -154,7 +187,23 @@ export function useEditorTelemetry({
         runtime: result.runtime,
         contextDigest: result.contextDigest,
         logicCheck: "not-checked",
+        previousRunStatus: previousRun.current?.status,
+        previousSourceDigest: previousRun.current?.digest,
+        sourceChanged: Boolean(
+          previousRun.current?.digest &&
+          result.sourceDigest &&
+          previousRun.current.digest !== result.sourceDigest,
+        ),
+        recoveredAfterError: Boolean(lastError.current && !error),
+        editsSincePreviousRun: changes.current - editsAtRun.current,
+        sourceSnapshot: lastValue.current.slice(0, 3000),
+        sourceTruncated: lastValue.current.length > 3000,
       });
+      previousRun.current = {
+        digest: result.sourceDigest,
+        status: result.status,
+      };
+      editsAtRun.current = changes.current;
       if (error) {
         lastError.current = error;
         setTimeline((items) => [

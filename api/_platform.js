@@ -97,7 +97,12 @@ export default async function handler(req, res) {
         request = request.eq("user_id", cleanText(query.userId));
       }
       if (entity === "activity" && query.detail === "1")
-        request = request.limit(100);
+        request = request
+          .order("id", { ascending: false })
+          .range(
+            Math.max(0, Number.parseInt(query.offset, 10) || 0),
+            Math.max(0, Number.parseInt(query.offset, 10) || 0) + 100,
+          );
       if (entity === "enrollment" && actor.role === "student")
         request = request.eq("user_id", actor.id);
       if (entity === "submission" && actor.role === "student")
@@ -127,7 +132,13 @@ export default async function handler(req, res) {
               );
             })
           : data || [];
-      return res.status(200).json({ [table]: rows });
+      return res
+        .status(200)
+        .json(
+          entity === "activity" && query.detail === "1"
+            ? { [table]: rows.slice(0, 100), hasMore: rows.length > 100 }
+            : { [table]: rows },
+        );
     }
 
     if (req.method === "POST") {

@@ -1,0 +1,11 @@
+# IDE activity in individual reports
+
+Faculty open Student insights → Open report → IDE activity. The report reads the selected student's persisted activity, with refresh and pages of 100 records. Tester evidence appears separately under Tester IDE activity.
+
+Recorded evidence includes browser paste events and character counts, copy events inside the IDE, batched edits (including same-length replacements), edits after a failed run, execution errors, sample-case results, submissions, and subsequent successful execution. New ordinary runs save the first 3,000 characters of source, its full digest, previous digest/status, edit count since the previous run, and whether a previous failure was followed by successful execution. Snapshots can be expanded for faculty review. Existing historical events remain available but cannot retroactively gain missing snapshots. Previous-run comparisons are scoped to the current editor session.
+
+Clipboard events do not reveal the source of pasted material or prove misconduct. Different source digests establish code revision, not a change in algorithm or understanding. Faculty should compare code and ask for the student's explanation. Execution success is distinct from sample correctness and from general correctness. Client evidence and timestamps are not tamper-proof. Only browser-observable actions are captured; actions outside the portal are not tracked.
+
+Events retain stable IDs in the IndexedDB delivery queue and retry after transient failures and reload. The server derives user identity from authentication, checks assignment/resource access, and deduplicates retries. Delivery/rejection state remains visible in the workspace. Storage-disabled browsers can retain pending events only for the tab lifetime; a closed browser cannot deliver until reopened. Faculty timestamps distinguish server receipt from the browser-reported time.
+
+Validation: the IDE browser test creates clipboard events, an invalid SQL run, corrective editing, and a successful run; reloads after a simulated outage; verifies all queued events reached the receiver; and opens their faculty report. API tests cover identity, unauthorized reads/writes, duplicate delivery and older-page retrieval.

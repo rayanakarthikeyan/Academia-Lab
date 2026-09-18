@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { StudentIdeHistory } from "./StudentIdeHistory";
 import type { AuthSession, SessionUser } from "../platform/types";
 import { tutorRequest, TutorExchange, type TutorRecord } from "./AiTutor";
 
@@ -102,7 +103,7 @@ export function TutorInsights({
   const [query, setQuery] = useState(""),
     [page, setPage] = useState(0),
     [selected, setSelected] = useState(""),
-    [tab, setTab] = useState<"overview" | "chats">("overview"),
+    [tab, setTab] = useState<"overview" | "chats" | "ide">("overview"),
     [counts, setCounts] = useState<Counts[]>([]),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
@@ -292,7 +293,7 @@ export function TutorInsights({
             {person.name} · Individual report
           </h3>
           <div
-            className="flex gap-2"
+            className="flex flex-wrap gap-2"
             role="tablist"
             aria-label="Student report"
           >
@@ -312,8 +313,22 @@ export function TutorInsights({
             >
               Chat history
             </button>
+            <button
+              role="tab"
+              aria-selected={tab === "ide"}
+              className="secondary-button"
+              onClick={() => setTab("ide")}
+            >
+              IDE activity
+            </button>
           </div>
-          {tab === "chats" ? (
+          {tab === "ide" ? (
+            <StudentIdeHistory
+              key={person.id}
+              token={session.token}
+              studentId={person.id}
+            />
+          ) : tab === "chats" ? (
             <TutorHistory
               key={person.id}
               token={session.token}

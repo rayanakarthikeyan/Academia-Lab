@@ -124,4 +124,13 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal(history.activity_logs.filter(row => row.id === logged.activity.id).length, 1);
   assert.ok(history.activity_logs.every(row => row.user_id === student.user.id));
   assert.equal((await call(platform, "GET", {}, outsider.token, { entity: "activity", detail: "1", userId: student.user.id })).status, 403);
+  const db = createSupabaseClient();
+  for (let i = 0; i < 105; i++) {
+    await db.from("activity_logs").insert({id:`pagination-${i}`,user_id:student.user.id,kind:"editor_change",metadata:{changes:1},occurred_at:new Date(Date.now()+i*1000).toISOString()});
+  }
+  const first = await call(platform, "GET", {}, faculty.token, {entity:"activity",detail:"1",userId:student.user.id});
+  const second = await call(platform, "GET", {}, faculty.token, {entity:"activity",detail:"1",userId:student.user.id,offset:"100"});
+  assert.equal(first.activity_logs.length,100); assert.equal(first.hasMore,true);
+  assert.equal(second.hasMore,false); assert.ok(second.activity_logs.length >= 6);
+  assert.ok(second.activity_logs.every(row => !first.activity_logs.some(other => other.id === row.id)));
 });
