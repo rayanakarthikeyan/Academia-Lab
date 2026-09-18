@@ -1,3 +1,4 @@
+import { ResourcePracticeReports } from "./ResourcePracticeReports";
 import { PracticeQuestionEditor } from "./PracticeQuestionEditor";
 import type { PracticeQuestion } from "../platform/types";
 import {
@@ -12,25 +13,21 @@ import {
   Plus,
   Search,
   Trash2,
-  UserRoundCheck,
-  Users,
   Video,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   deleteResource,
-  loadCoursework,
   loadResourceActivity,
   publishResource,
+  updateResource,
 } from "../platform/api";
-import { CohortFilters, matchesCohort } from "./CohortFilters";
 import { curriculumCatalog } from "../platform/curriculum";
 import type {
   CourseCode,
   LearningResource,
   ResourceType,
-  SessionUser,
 } from "../platform/types";
 
 interface FacultyResourceManagerProps {
@@ -76,12 +73,7 @@ export function FacultyResourceManager({
     durationMinutes: "15",
     dueDate: defaultDueDate(),
   });
-  const [students, setStudents] = useState<SessionUser[]>([]);
-  const [studentQuery, setStudentQuery] = useState("");
-  const [department, setDepartment] = useState("");
-  const [section, setSection] = useState("");
-  const [audience, setAudience] = useState<"all" | "selected">("all");
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [activity, setActivity] = useState<
     Awaited<ReturnType<typeof loadResourceActivity>>
   >([]);
@@ -93,19 +85,11 @@ export function FacultyResourceManager({
   const courseItems = curriculumCatalog.filter(
     (item) => item.track === "theory" && item.courseCode === course,
   );
-  const filteredStudents = students.filter((student) =>
-    matchesCohort(student, studentQuery, department, section),
-  );
-  const renderedStudents = filteredStudents.slice(0, 100);
-  const recipientCount =
-    audience === "all" ? students.length : selectedStudentIds.length;
-
   useEffect(() => {
     let active = true;
-    void Promise.all([loadCoursework(token, true), loadResourceActivity(token)])
-      .then(([coursework, logs]) => {
+    void loadResourceActivity(token)
+      .then((logs) => {
         if (!active) return;
-        setStudents(coursework.students);
         setActivity(logs);
       })
       .catch((error) => {
@@ -190,6 +174,12 @@ export function FacultyResourceManager({
   );
 
   const selectCurriculum = (nextCourse: CourseCode, nextUnit: number) => {
+    if (nextCourse !== course && practiceQuestions.length) {
+      setNotice(
+        "Remove attached questions before changing the course, or save this resource first.",
+      );
+      return;
+    }
     const item = curriculumCatalog.find(
       (entry) =>
         entry.track === "theory" &&
@@ -203,7 +193,7 @@ export function FacultyResourceManager({
     setForm((current) => ({ ...current, title: item.title }));
   };
 
-  const publish = async (event: React.FormEvent) => {
+  const publish = async (event: React.FormEvent, isPublished = true) => {
     event.preventDefault();
     if (publishing) return;
     const normalizedUrl = form.externalUrl.trim();
@@ -213,8 +203,9 @@ export function FacultyResourceManager({
         normalizedUrl,
       );
     if (
-      (form.type === "youtube" && !validYoutube) ||
-      (form.type === "pdf" && !validPdf)
+      isPublished &&
+      ((form.type === "youtube" && !validYoutube) ||
+        (form.type === "pdf" && !validPdf))
     ) {
       setNotice(
         form.type === "youtube"
@@ -223,15 +214,11 @@ export function FacultyResourceManager({
       );
       return;
     }
-    if (audience === "selected" && recipientCount === 0) {
-      setNotice("Register or select at least one student before publishing.");
-      return;
-    }
-
     setPublishing(true);
     setNotice("");
     try {
-      const resource = await publishResource(token, {
+      const payload = {
+        isPublished,
         practiceQuestions,
         courseId: course === "JAVA" ? "course-java" : "course-dbms",
         title: form.title,
@@ -243,16 +230,23 @@ export function FacultyResourceManager({
         courseCode: course,
         unitNumber: unit,
         dueDate: form.dueDate,
-        assignedUserIds: audience === "all" ? [] : selectedStudentIds,
-      });
-      onChange([resource, ...resources]);
+        assignedUserIds: [],
+      };
+      const resource = editingId
+        ? await updateResource(token, editingId, payload)
+        : await publishResource(token, payload);
+      onChange([
+        resource,
+        ...resources.filter((row) => row.id !== resource.id),
+      ]);
+      setEditingId(null);
       setPracticeQuestions([]);
       setForm((current) => ({ ...current, externalUrl: "" }));
       setShowForm(false);
       setNotice(
-        audience === "all"
-          ? "Resource and practice published to all current and future students."
-          : `Resource and practice assigned to ${recipientCount} student${recipientCount === 1 ? "" : "s"}.`,
+        isPublished
+          ? "Resource published to enrolled students in the course cohort, including future registrations."
+          : "Draft saved. Students cannot see it.",
       );
     } catch (error) {
       setNotice(
@@ -263,6 +257,40 @@ export function FacultyResourceManager({
     }
   };
 
+  const [reviewId, setReviewId] = useState("");
+  const edit = (resource: LearningResource) => {
+    setEditingId(resource.id);
+    setCourse(resource.courseCode);
+    setUnit(resource.unitNumber);
+    setSelectedItemId(resource.curriculumItemId);
+    setForm({
+      title: resource.title,
+      type: resource.type,
+      externalUrl: resource.externalUrl,
+      durationMinutes: String(resource.durationMinutes),
+      dueDate: resource.dueDate,
+    });
+    setPracticeQuestions(resource.practiceQuestions || []);
+    setShowForm(true);
+  };
+  const togglePublication = async (resource: LearningResource) => {
+    setPublishing(true);
+    try {
+      const updated = await updateResource(token, resource.id, {
+        isPublished: resource.isPublished === false,
+      });
+      onChange(resources.map((row) => (row.id === updated.id ? updated : row)));
+      setNotice(
+        updated.isPublished
+          ? "Resource published to the course cohort."
+          : "Resource unpublished. Saved student submissions are retained.",
+      );
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setPublishing(false);
+    }
+  };
   const remove = async (resource: LearningResource) => {
     if (!window.confirm(`Delete "${resource.title}"?`)) return;
     try {
@@ -334,6 +362,13 @@ export function FacultyResourceManager({
         </div>
       )}
 
+      {reviewId && (
+        <ResourcePracticeReports
+          token={token}
+          resourceId={reviewId}
+          onClose={() => setReviewId("")}
+        />
+      )}
       <section className="panel overflow-hidden">
         <header className="flex flex-col gap-4 border-b border-[var(--line)] p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -501,115 +536,10 @@ export function FacultyResourceManager({
               onChange={setPracticeQuestions}
               course={course}
             />
-            <section className="border-b border-[var(--line)] p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Users className="text-emerald-600" size={19} />
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[.14em] text-emerald-600">
-                      Step 3
-                    </p>
-                    <h3 className="text-sm font-semibold">Choose students</h3>
-                  </div>
-                </div>
-                <span className="text-xs text-[var(--muted)]">
-                  {recipientCount} selected
-                </span>
-              </div>
-              <div className="segmented-control w-full sm:w-[360px]">
-                <button
-                  className={`flex-1 ${audience === "all" ? "active" : ""}`}
-                  onClick={() => setAudience("all")}
-                  type="button"
-                >
-                  <Users size={14} className="mr-1 inline" />
-                  All students
-                </button>
-                <button
-                  className={`flex-1 ${audience === "selected" ? "active" : ""}`}
-                  onClick={() => setAudience("selected")}
-                  type="button"
-                >
-                  <UserRoundCheck size={14} className="mr-1 inline" />
-                  Selected
-                </button>
-              </div>
-              {audience === "selected" && (
-                <div className="mt-4 overflow-hidden rounded-md border border-[var(--line)]">
-                  <div className="m-2">
-                    <CohortFilters
-                      department={department}
-                      section={section}
-                      onDepartment={setDepartment}
-                      onSection={setSection}
-                    />
-                  </div>
-                  <div className="m-2 flex flex-wrap gap-2">
-                    <label className="search-control min-w-[220px] flex-1">
-                      <Search size={14} />
-                      <input
-                        value={studentQuery}
-                        onChange={(event) =>
-                          setStudentQuery(event.target.value)
-                        }
-                        placeholder="Search students"
-                      />
-                    </label>
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        setSelectedStudentIds((current) => [
-                          ...new Set([
-                            ...current,
-                            ...filteredStudents.map((student) => student.id),
-                          ]),
-                        ])
-                      }
-                      type="button"
-                    >
-                      Select filtered
-                    </button>
-                    <button
-                      className="icon-button"
-                      onClick={() => setSelectedStudentIds([])}
-                      title="Clear selection"
-                      type="button"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto border-t border-[var(--line)]">
-                    {renderedStudents.map((student) => (
-                      <label
-                        className="flex cursor-pointer items-center gap-3 border-b border-[var(--line)] px-3 py-2.5 last:border-0"
-                        key={student.id}
-                      >
-                        <input
-                          checked={selectedStudentIds.includes(student.id)}
-                          onChange={(event) =>
-                            setSelectedStudentIds((current) =>
-                              event.target.checked
-                                ? [...current, student.id]
-                                : current.filter((id) => id !== student.id),
-                            )
-                          }
-                          type="checkbox"
-                        />
-                        <span>
-                          <strong className="block text-xs">
-                            {student.name}
-                          </strong>
-                          <small className="text-[10px] text-[var(--muted)]">
-                            {student.rollNumber || student.email} /{" "}
-                            {student.department || "-"} /{" "}
-                            {student.section || "-"}
-                          </small>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <section className="border-b border-[var(--line)] p-5 text-sm">
+              Recipients follow this course’s published cohort in Enrollment
+              management. No students need to be registered yet; eligible
+              students receive published resources after enrolling.
             </section>
             <footer className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex items-center gap-2 text-xs text-[var(--muted)]">
@@ -617,11 +547,16 @@ export function FacultyResourceManager({
                 Unit {unit} resource due {form.dueDate}
               </p>
               <button
+                type="button"
+                className="secondary-button"
+                disabled={publishing}
+                onClick={(event) => void publish(event, false)}
+              >
+                Save resource draft
+              </button>
+              <button
                 className="primary-button"
-                disabled={
-                  publishing ||
-                  (audience === "selected" && recipientCount === 0)
-                }
+                disabled={publishing}
                 type="submit"
               >
                 {publishing ? (
@@ -699,6 +634,11 @@ export function FacultyResourceManager({
                         <span>
                           <strong>{resource.title}</strong>
                           <small>
+                            {resource.isPublished === false
+                              ? "Draft / unpublished"
+                              : "Published"}
+                          </small>
+                          <small>
                             {resource.type === "youtube"
                               ? "YouTube"
                               : "Drive / PDF"}{" "}
@@ -713,9 +653,7 @@ export function FacultyResourceManager({
                       </span>
                     </td>
                     <td>{resource.dueDate || "Open"}</td>
-                    <td>
-                      {resource.assignedUserIds.length || students.length}
-                    </td>
+                    <td>Course cohort</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <div className="progress-track w-20">
@@ -734,7 +672,28 @@ export function FacultyResourceManager({
                       {stats.completed} / {stats.learners}
                     </td>
                     <td>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          className="secondary-button"
+                          onClick={() => edit(resource)}
+                        >
+                          Edit resource
+                        </button>
+                        <button
+                          className="secondary-button"
+                          disabled={publishing}
+                          onClick={() => void togglePublication(resource)}
+                        >
+                          {resource.isPublished === false
+                            ? "Publish"
+                            : "Unpublish"}
+                        </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() => setReviewId(resource.id)}
+                        >
+                          Practice submissions
+                        </button>
                         <a
                           className="icon-button"
                           href={resource.externalUrl}

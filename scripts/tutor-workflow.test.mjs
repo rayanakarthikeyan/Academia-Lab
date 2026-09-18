@@ -85,6 +85,7 @@ await db
   .from("resources")
   .insert({
     id: "tutor-resource",
+    course_id: "course-dbms",
     title: "SQL notes",
     topic: "Joins",
     is_published: true,
@@ -105,6 +106,8 @@ await db
     kind: "lab_draft",
     metadata: { draft: { title: "Draft lab", brief: "Review primes" } },
   });
+await db.from("course_cohorts").insert({id:"tutor-cohort",course_id:"course-dbms",target_audience:"all"});
+await db.from("enrollments").insert({id:"tutor-enrollment",course_id:"course-dbms",user_id:"tutor-student",status:"active"});
 let prompts = [];
 const tutor = createTutorHandler(async (prompt) => {
   prompts.push(JSON.parse(prompt));

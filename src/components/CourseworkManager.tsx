@@ -146,6 +146,7 @@ export function AssignmentWorkspace({
   assignment,
   practiceOnly = false,
   tutorContext,
+  onPracticeSubmit,
   submission,
   session,
   theme,
@@ -155,6 +156,12 @@ export function AssignmentWorkspace({
 }: {
   practiceOnly?: boolean;
   tutorContext?: TutorContext;
+  onPracticeSubmit?: (work: {
+    code: string;
+    input: string;
+    output: string;
+    runtime: string;
+  }) => Promise<LearningRecord>;
   assignment: AssignmentRecord;
   submission?: LearningRecord;
   session: AuthSession;
@@ -263,6 +270,9 @@ export function AssignmentWorkspace({
   const savedAnswers = submission?.metadata?.answers;
   const [stdin, setStdin] = useState(
     () =>
+      (typeof submission?.metadata.input === "string"
+        ? submission.metadata.input
+        : undefined) ??
       readLocalDraft(`${localKey}-stdin`) ??
       assignment.test_cases?.[0]?.input ??
       "",
@@ -373,6 +383,35 @@ export function AssignmentWorkspace({
   }, [answers, body, stdin, isMcq, localKey, locked, labReport, labEvidence]);
   const persist = async (status: "draft" | "submitted", automatic = false) => {
     if (practiceOnly) {
+      if (status === "submitted" && onPracticeSubmit) {
+        if (saving || locked) return;
+        setSaving(true);
+        setError("");
+        try {
+          const record = await onPracticeSubmit({
+            code: body,
+            input: stdin,
+            output:
+              (lastRun?.code === body &&
+              lastRun.input === stdin &&
+              lastRun.context === runtimeContext
+                ? "Current run: "
+                : "Earlier run; work may have changed: ") +
+              output.stdout +
+              output.stderr,
+            runtime: language === "sql" ? sqlEngine : "java8",
+          });
+          setLocked(true);
+          onSaved(record);
+          telemetry.recordSubmit();
+          setNotice("Practice submitted to faculty.");
+        } catch (caught) {
+          setError((caught as Error).message);
+        } finally {
+          setSaving(false);
+        }
+        return;
+      }
       try {
         localStorage.setItem(localKey, body);
         localStorage.setItem(`${localKey}-stdin`, stdin);
@@ -869,7 +908,10 @@ export function AssignmentWorkspace({
             <div className="mt-5 border-t border-[var(--line)] pt-4">
               <h3 className="text-xs font-semibold">Sample input</h3>
               <pre className="mt-2 whitespace-pre-wrap break-words text-xs">
-                {assignment.test_cases?.[0]?.input || "See task fixtures"}
+                {assignment.test_cases?.[0]?.input ||
+                  (practiceOnly
+                    ? "No sample input supplied. Use your own values."
+                    : "See task fixtures")}
               </pre>
               {!isCoding && (
                 <>
@@ -1118,7 +1160,7 @@ export function AssignmentWorkspace({
               <Save size={16} />
               Save draft
             </button>
-            {!practiceOnly && (
+            {(!practiceOnly || onPracticeSubmit) && (
               <button
                 className="primary-button"
                 disabled={

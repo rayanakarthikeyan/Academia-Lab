@@ -16,9 +16,9 @@ export function PracticeQuestionEditor({
     <section className="border-b border-[var(--line)] p-5 space-y-4">
       <h3 className="font-semibold">Practice after this module</h3>
       <p className="text-sm text-[var(--muted)]">
-        Attach Java, DBMS (SQL), or interactive visual questions. Students use
-        the existing workspace and can enter their own input. Practice is
-        ungraded.
+        Attach {course === "JAVA" ? "Java" : "DBMS (SQL)"} questions. Students
+        can enter their own input. Samples are optional; choose whether each
+        question requires a submission. Practice is ungraded.
       </p>
       {questions.map((q, i) => (
         <fieldset key={q.id} className="panel p-4 grid gap-3">
@@ -33,9 +33,16 @@ export function PracticeQuestionEditor({
                 })
               }
             >
-              <option value="java">Java</option>
-              <option value="sql">DBMS (SQL)</option>
-              <option value="visual">Visual canvas (HTML / JavaScript)</option>
+              {course === "JAVA" ? (
+                <option value="java">Java</option>
+              ) : (
+                <option value="sql">DBMS (SQL)</option>
+              )}
+              {q.language === "visual" && (
+                <option value="visual">
+                  Visual canvas (existing question)
+                </option>
+              )}
             </select>
           </label>
           {q.language === "visual" && (
@@ -76,7 +83,7 @@ export function PracticeQuestionEditor({
             />
           </label>
           <label>
-            Sample input
+            Sample input (optional)
             <textarea
               maxLength={10000}
               value={q.input}
@@ -84,13 +91,22 @@ export function PracticeQuestionEditor({
             />
           </label>
           <label>
-            Expected output / visual observations
+            Expected output / visual observations (optional)
             <textarea
-              required
               maxLength={10000}
               value={q.expectedOutput}
               onChange={(e) => update(q.id, { expectedOutput: e.target.value })}
             />
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={q.requireSubmission === true}
+              onChange={(e) =>
+                update(q.id, { requireSubmission: e.target.checked })
+              }
+            />
+            Require student submission
           </label>
           <button
             type="button"

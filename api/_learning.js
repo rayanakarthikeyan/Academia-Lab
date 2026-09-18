@@ -176,7 +176,7 @@ export default async function handler(req, res) {
     const supabase = createSupabaseClient({ requirePrivileged: true });
     const actor = await requireUser(supabase, req);
     if (
-      /^(faculty-draft:|interactive-release:|tutor:)/.test(
+      /^(faculty-draft:|interactive-release:|tutor:|practice:)/.test(
         cleanText(getBody(req).id || getQuery(req).id),
       )
     )

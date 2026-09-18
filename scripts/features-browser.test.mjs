@@ -143,6 +143,7 @@ try {
   await page
     .getByRole("button", { name: "Assign resource", exact: true })
     .click();
+  await page.getByRole("button", {name:"DBMS",exact:true}).click();
   await page.getByLabel("Resource type").selectOption("pdf");
   await page.getByLabel("External URL").fill("https://example.com/study.pdf");
   await page.getByRole("button", { name: "Add practice question" }).click();
@@ -154,7 +155,7 @@ try {
   await page.getByRole("button", { name: "Assign and monitor" }).click();
   await page
     .getByText(
-      "Resource and practice published to all current and future students.",
+      "Resource published to enrolled students in the course cohort, including future registrations.",
     )
     .waitFor();
   assert.equal(assignedResource.practiceQuestions[0].language, "sql");

@@ -7,6 +7,8 @@ const suites = [
   "tutor-browser",
   "workspace-layout",
   "workflow",
+  "resource-workflow",
+  "resource-browser",
   "tester-workflow",
   "features-browser",
   "ide-telemetry",

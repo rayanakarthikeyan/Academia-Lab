@@ -49,6 +49,7 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal(student.user.college, "Experivio");
   assert.equal(student.user.password_hash, undefined);
   assert.equal((await call(register, "POST", profile)).status, 409);
+  await createSupabaseClient().from("course_cohorts").insert(["course-java","course-dbms"].map(course_id=>({id:`cohort-${course_id}`,course_id,target_audience:"cohort",department:"CSE",academic_year:"2",sections:["A"]})));
   const enrolled = await call(platform, "GET", {}, student.token, { entity: "enrollment" });
   assert.deepEqual(enrolled.enrollments.map(e => e.course_id).sort(), ["course-dbms", "course-java"]);
   assert.ok(enrolled.enrollments.every(e => e.tracks.includes("theory") && e.tracks.includes("lab")));
@@ -103,7 +104,7 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.equal(visibleVisual.execution_environment, "visual");
   assert.equal(visibleVisual.test_cases.length, 1);
   assert.equal((await call(learning, "POST", { kind: "submission", assignmentId: labWork.assignment.id, title: "Unauthorized", body: "code", status: "draft" }, outsider.token)).status, 403);
-  const practiceQuestions = ["java", "sql", "visual"].map(language => ({ id: language, language, title: `${language} practice`, prompt: "Solve the module task", starterCode: "", input: "4", expectedOutput: "Expected observations" }));
+  const practiceQuestions = ["java", "visual"].map(language => ({ id: language, language, title: `${language} practice`, prompt: "Solve the module task", starterCode: "", input: "4", expectedOutput: "Expected observations" }));
   const resourcePayload = { courseId: "course-java", courseCode: "JAVA", title: "Study and practice", type: "pdf", externalUrl: "https://example.com/lesson.pdf", durationMinutes: 10, assignedUserIds: [student.user.id], practiceQuestions };
   assert.equal((await call(platform, "POST", resourcePayload, student.token, { entity: "resource" })).status, 403);
   assert.equal((await call(platform, "POST", { ...resourcePayload, practiceQuestions: [{ ...practiceQuestions[0], language: "bad" }] }, faculty.token, { entity: "resource" })).status, 400);
@@ -113,7 +114,7 @@ test("registration, publication gate, editing, filtering and grading", async () 
   assert.deepEqual((await call(platform, "GET", {}, student.token, { entity: "resource" })).resources[0].practice_questions, practiceQuestions);
   const revised = await call(platform, "PATCH", { id: resource.resource.id, practiceQuestions: [practiceQuestions[1]] }, faculty.token, { entity: "resource" });
   assert.equal(revised.status, 200);
-  assert.equal(revised.resource.practice_questions[0].language, "sql");
+  assert.equal(revised.resource.practice_questions[0].language, "visual");
   const event = { eventId: "00000000-0000-4000-8000-000000000001", userId: outsider.user.id, assignmentId: labWork.assignment.id, kind: "code_run", metadata: { status: "passed" } };
   const logged = await call(platform, "POST", event, student.token, { entity: "activity" });
   assert.equal(logged.status, 201, JSON.stringify(logged));

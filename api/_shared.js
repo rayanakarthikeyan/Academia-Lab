@@ -32,6 +32,7 @@ function getLocalDb() {
     localDb.learning_records ||= [];
     localDb.courses ||= [];
     localDb.enrollments ||= [];
+    localDb.course_cohorts ||= [];
     localDb.resources ||= [];
     localDb.assessments ||= [];
     localDb.submissions ||= [];
@@ -115,6 +116,10 @@ class LocalQuery {
 
   eq(column, value) {
     this.filters.push((row) => row[column] === value);
+    return this;
+  }
+  in(column, values) {
+    this.filters.push((row) => values.includes(row[column]));
     return this;
   }
 

@@ -73,6 +73,7 @@ export interface Enrollment {
 }
 
 export interface PracticeQuestion {
+  requireSubmission?: boolean;
   id: string;
   title: string;
   prompt: string;
@@ -83,6 +84,7 @@ export interface PracticeQuestion {
 }
 
 export interface LearningResource {
+  isPublished?: boolean;
   practiceQuestions?: PracticeQuestion[];
   id: string;
   courseId: string;
@@ -236,7 +238,7 @@ export interface ActivityTemplate {
 
 export interface LearningRecord {
   id: string;
-  kind: "question" | "submission" | "chat";
+  kind: "question" | "submission" | "chat" | "resource_practice";
   author_id: string;
   subject_id?: string | null;
   assignment_id?: string | null;

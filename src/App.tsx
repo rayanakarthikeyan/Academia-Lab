@@ -224,37 +224,49 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     let active = true;
-    void loadStudentOverview(session.token)
-      .then((data) => {
-        if (!active) return;
-        setEnrollments(
-          data.enrollments.filter(
-            (item) =>
-              session.user.role !== "student" ||
-              item.userId === session.user.id,
-          ),
-        );
-        setLearningResources(data.resources);
-      })
-      .catch(() => undefined);
-    if (session.user.role === "student") {
-      void loadCoursework(session.token, false)
+    const refresh = () => {
+      void loadStudentOverview(session.token)
         .then((data) => {
           if (!active) return;
-          setDashboardAssignments(data.assignments);
-          setDashboardSubmissions(data.submissions);
+          setEnrollments(
+            data.enrollments.filter(
+              (item) =>
+                session.user.role !== "student" ||
+                item.userId === session.user.id,
+            ),
+          );
+          setLearningResources(data.resources);
         })
         .catch(() => undefined);
+      if (session.user.role === "student") {
+        void loadCoursework(session.token, false)
+          .then((data) => {
+            if (!active) return;
+            setDashboardAssignments(data.assignments);
+            setDashboardSubmissions(data.submissions);
+          })
+          .catch(() => undefined);
 
-      void loadPublishedCohorts(session.token)
-        .then((data) => {
-          if (!active) return;
-          setPublishedCohorts(data);
-        })
-        .catch(() => undefined);
-    }
+        void loadPublishedCohorts(session.token)
+          .then((data) => {
+            if (!active) return;
+            setPublishedCohorts(data);
+          })
+          .catch(() => undefined);
+      }
+    };
+    refresh();
+    const timer =
+      session.user.role === "student"
+        ? window.setInterval(() => {
+            if (!document.hidden) refresh();
+          }, 60000)
+        : undefined;
+    window.addEventListener("focus", refresh);
     return () => {
       active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
     };
   }, [session]);
 

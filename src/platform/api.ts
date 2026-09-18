@@ -70,6 +70,7 @@ function mapResource(row: Record<string, unknown>): LearningResource {
     practiceQuestions: Array.isArray(row.practice_questions)
       ? row.practice_questions
       : [],
+    isPublished: row.is_published !== false,
     curriculumItemId: String(row.curriculum_item_id || ""),
     courseCode: (row.course_code ||
       (row.course_id === "course-dbms"
@@ -267,9 +268,25 @@ export async function publishResource(
     | "dueDate"
     | "assignedUserIds"
     | "practiceQuestions"
+    | "isPublished"
   >,
 ) {
   const data = await platformMutation(token, "resource", resource);
+  return mapResource(data.resource as Record<string, unknown>);
+}
+
+export async function updateResource(
+  token: string,
+  id: string,
+  resource: Partial<LearningResource>,
+) {
+  const data = await parseResponse(
+    await fetch(`${API_BASE}/api/platform?entity=resource`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify({ id, ...resource }),
+    }),
+  );
   return mapResource(data.resource as Record<string, unknown>);
 }
 

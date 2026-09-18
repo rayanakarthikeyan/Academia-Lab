@@ -1,4 +1,10 @@
-import { normalizePracticeQuestions } from "./_practice.js";
+import { resourceFields } from "./_resources.js";
+import {
+  studentCourseAccess,
+  matchesPublishedCohort,
+  requireResourceAccess,
+} from "./_course-access.js";
+import { resourcePractice } from "./_resource-practice.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   cleanText,
@@ -63,6 +69,7 @@ export default async function handler(req, res) {
     const query = getQuery(req);
     const body = getBody(req);
     const entity = cleanText(query.entity || body.entity);
+    if (entity === "resource-practice") return await resourcePractice(req, res);
     const table = tableFor(entity);
     if (!table)
       return res
@@ -73,6 +80,7 @@ export default async function handler(req, res) {
     const actor = await requireUser(supabase, req);
 
     if (req.method === "GET") {
+      res.setHeader("Cache-Control", "private, no-store");
       if (
         entity === "activity" &&
         query.summary === "1" &&
@@ -119,19 +127,22 @@ export default async function handler(req, res) {
         request = request.eq("assessment_id", cleanText(query.assessmentId));
       const { data, error } = await request;
       if (error) throw error;
+      const allowedCourses =
+        entity === "resource" || entity === "enrollment"
+          ? await studentCourseAccess(supabase, actor)
+          : null;
       const rows =
         entity === "resource" && actor.role === "student"
           ? (data || []).filter((resource) => {
-              const assignedUserIds = Array.isArray(resource.assigned_user_ids)
-                ? resource.assigned_user_ids
-                : [];
-              return (
-                assignedUserIds.length === 0 ||
-                assignedUserIds.includes(actor.id) ||
-                isTester(actor)
-              );
+              return !allowedCourses || allowedCourses.has(resource.course_id);
             })
-          : data || [];
+          : entity === "enrollment" && allowedCourses
+            ? (data || []).filter((row) => allowedCourses.has(row.course_id))
+            : entity === "course-publish" &&
+                actor.role === "student" &&
+                !isTester(actor)
+              ? (data || []).filter((row) => matchesPublishedCohort(row, actor))
+              : data || [];
       return res
         .status(200)
         .json(
@@ -164,10 +175,13 @@ export default async function handler(req, res) {
             .limit(1);
           if (targetError) throw targetError;
           const target = targets?.[0];
+          if (!assignmentId)
+            await requireResourceAccess(supabase, actor, target);
           if (
             !target ||
             (!assignmentId && target.is_published === false) ||
-            (!isTester(actor) &&
+            (assignmentId &&
+              !isTester(actor) &&
               target.assigned_user_ids?.length &&
               !target.assigned_user_ids.includes(actor.id))
           )
@@ -282,6 +296,11 @@ export default async function handler(req, res) {
         const missing = requireFields(body, ["courseId"]);
         if (missing) return res.status(400).json({ error: missing });
         const courseId = cleanText(body.courseId);
+        const allowed = await studentCourseAccess(supabase, actor, false);
+        if (allowed && !allowed.has(courseId))
+          return res.status(403).json({
+            error: "This course has not been published to your cohort",
+          });
         const { data: existing, error: existingError } = await supabase
           .from(table)
           .select("*")
@@ -317,8 +336,29 @@ export default async function handler(req, res) {
         const missing = requireFields(body, ["courseId", "target"]);
         if (missing) return res.status(400).json({ error: missing });
         const target = metadata(body.target);
-        if (!target.audience)
+        if (!["all", "cohort"].includes(target.audience))
           return res.status(400).json({ error: "Target audience is required" });
+        if (
+          (target.department &&
+            !["CSE", "CSM", "CSD"].includes(target.department)) ||
+          (target.year &&
+            !["1", "2", "3", "4"].includes(String(target.year))) ||
+          (target.sections !== undefined &&
+            (!Array.isArray(target.sections) ||
+              target.sections.some(
+                (value) => !["A", "B", "C", "D", "E"].includes(value),
+              ))) ||
+          (target.audience === "cohort" &&
+            !target.department &&
+            !target.year &&
+            !target.sections?.length)
+        )
+          return res
+            .status(400)
+            .json({
+              error:
+                "Choose a valid department, year or section for the cohort",
+            });
         const payload = {
           id: `pub-${randomUUID()}`,
           course_id: cleanText(body.courseId),
@@ -342,65 +382,16 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: "Faculty access is required" });
         const required =
           entity === "resource"
-            ? ["courseId", "title", "type", "externalUrl"]
+            ? ["courseId", "title", "type"]
             : ["courseId", "title", "durationMinutes"];
         const missing = requireFields(body, required);
         if (missing) return res.status(400).json({ error: missing });
-        if (entity === "resource") {
-          let url;
-          try {
-            url = new URL(body.externalUrl);
-          } catch {
-            return res
-              .status(400)
-              .json({ error: "Enter a valid resource URL" });
-          }
-          if (
-            !["https:", "http:"].includes(url.protocol) ||
-            !["youtube", "pdf"].includes(body.type)
-          )
-            return res
-              .status(400)
-              .json({ error: "Choose a video or PDF with an HTTP(S) URL" });
-          if (
-            !["JAVA", "DBMS"].includes(body.courseCode) ||
-            body.courseId !==
-              (body.courseCode === "JAVA" ? "course-java" : "course-dbms")
-          )
-            return res.status(400).json({ error: "Choose a matching course" });
-          if (
-            !Number.isFinite(Number(body.durationMinutes)) ||
-            Number(body.durationMinutes) <= 0
-          )
-            return res
-              .status(400)
-              .json({ error: "Study duration must be greater than zero" });
-        }
         const payload =
           entity === "resource"
             ? {
                 id: `res-${randomUUID()}`,
-                course_id: cleanText(body.courseId),
+                ...resourceFields(body),
                 created_by: actor.id,
-                title: cleanText(body.title),
-                topic: cleanText(body.topic),
-                type: cleanText(body.type),
-                external_url: cleanText(body.externalUrl),
-                duration_minutes: Number(body.durationMinutes) || 0,
-                curriculum_item_id: cleanText(body.curriculumItemId),
-                course_code: cleanText(body.courseCode).toUpperCase(),
-                unit_number: Math.min(
-                  5,
-                  Math.max(1, Number(body.unitNumber) || 1),
-                ),
-                due_date: cleanText(body.dueDate) || null,
-                assigned_user_ids: Array.isArray(body.assignedUserIds)
-                  ? body.assignedUserIds.map(cleanText).filter(Boolean)
-                  : [],
-                is_published: body.isPublished !== false,
-                practice_questions: normalizePracticeQuestions(
-                  body.practiceQuestions,
-                ),
                 created_at: now,
                 updated_at: now,
               }
@@ -479,24 +470,21 @@ export default async function handler(req, res) {
       if (error) throw error;
       return res.status(200).json({ [entity]: data });
     }
+    let existingResource;
+    if (entity === "resource") {
+      const result = await supabase
+        .from(table)
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (result.error) throw result.error;
+      if (!result.data)
+        return res.status(404).json({ error: "Resource not found" });
+      existingResource = result.data;
+    }
     const allowed =
       entity === "resource"
-        ? {
-            practice_questions:
-              body.practiceQuestions === undefined
-                ? undefined
-                : normalizePracticeQuestions(body.practiceQuestions),
-            title: body.title,
-            topic: body.topic,
-            external_url: body.externalUrl,
-            duration_minutes: body.durationMinutes,
-            curriculum_item_id: body.curriculumItemId,
-            course_code: body.courseCode,
-            unit_number: body.unitNumber,
-            due_date: body.dueDate,
-            assigned_user_ids: body.assignedUserIds,
-            is_published: body.isPublished,
-          }
+        ? resourceFields(body, existingResource)
         : {
             title: body.title,
             description: body.description,
@@ -511,6 +499,26 @@ export default async function handler(req, res) {
     const payload = Object.fromEntries(
       Object.entries(allowed).filter(([, value]) => value !== undefined),
     );
+    if (
+      entity === "resource" &&
+      ((body.practiceQuestions !== undefined &&
+        JSON.stringify(payload.practice_questions) !==
+          JSON.stringify(existingResource.practice_questions || [])) ||
+        payload.course_id !== existingResource.course_id)
+    ) {
+      const attempts = await supabase
+        .from("learning_records")
+        .select("id")
+        .eq("kind", "resource_practice")
+        .eq("title", id)
+        .limit(1);
+      if (attempts.error) throw attempts.error;
+      if (attempts.data?.length)
+        return res.status(409).json({
+          error:
+            "Students have submitted this practice. Create a new resource to change its questions or course.",
+        });
+    }
     payload.updated_at = new Date().toISOString();
     const { data, error } = await supabase
       .from(table)

@@ -1,4 +1,5 @@
 import { isTester } from "./_shared.js";
+import { requireResourceAccess } from "./_course-access.js";
 import labQuestions from "../src/platform/lab-questions.json" with { type: "json" };
 export function tutorError(message, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
@@ -41,6 +42,7 @@ export async function tutorContext(db, actor, input) {
     };
   }
   if (
+    kind === "assignment" &&
     row.assigned_user_ids?.length &&
     !row.assigned_user_ids.includes(actor.id) &&
     !isTester(actor)
@@ -69,6 +71,7 @@ export async function tutorContext(db, actor, input) {
   }
   if (row.is_published !== true)
     throw tutorError("This resource is not published.", 403);
+  await requireResourceAccess(db, actor, row);
   const questionId = String(input.questionId || ""),
     q = questionId
       ? (row.practice_questions || []).find((q) => q.id === questionId)
