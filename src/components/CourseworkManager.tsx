@@ -645,7 +645,7 @@ export function AssignmentWorkspace({
     type !== "assessment" &&
     Boolean(tutorContext || !practiceOnly);
   const syllabusQuestion =
-    type === "lab"
+    type === "lab" || tutorContext?.kind === "draft"
       ? (labQuestions as Record<string, string>)[assignment.curriculum_item_id]
       : undefined;
   const tutorPanel = session.user.role === "student" &&
