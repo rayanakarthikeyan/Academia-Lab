@@ -1,5 +1,9 @@
 # CogniXplore
 
+[![Application evidence checks](https://github.com/rayanakarthikeyan/Academia-Lab/actions/workflows/verify.yml/badge.svg)](https://github.com/rayanakarthikeyan/Academia-Lab/actions/workflows/verify.yml)
+
+[Engineering case study and runnable checks](docs/ENGINEERING_CASE_STUDY.md): role-based full-stack workflows, tutor context, saved activity, and explicit verification limits.
+
 **CogniXplore: An Experiential Learning Platform Powered by Cognitive Visualization**
 
 Visualize. Experience. Explore. Learn.

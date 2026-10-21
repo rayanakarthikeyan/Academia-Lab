@@ -1,0 +1,36 @@
+name: Application evidence checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Compile the application
+        run: npm run build
+      - name: Access control and tutor workflow checks
+        run: |
+          mkdir -p reports
+          node --test --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=reports/workflows.xml scripts/workflow.test.mjs scripts/tutor-workflow.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: application-workflow-evidence
+          path: reports/workflows.xml
