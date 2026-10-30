@@ -17,9 +17,10 @@
     "test:runtimes": "node scripts/runtime-extensions.test.mjs",
     "test:runtime-ui": "node scripts/runtime-ui.test.mjs",
     "test:runtime-production": "node scripts/postgres-production.test.mjs",
+    "test:fullstack": "node scripts/fullstack.test.mjs",
+    "test:live": "node scripts/live-smoke.test.mjs",
     "api:local": "node server/local-api.mjs",
     "dev": "node server/dev.mjs",
-    "dev:vercel": "vercel dev",
     "dev:vite": "vite --host 127.0.0.1 --port 5173",
     "seed:supabase": "node scripts/seed-supabase.js",
     "migrate:supabase": "node scripts/migrate-supabase.js",
@@ -49,8 +50,7 @@
     "ws": "^8.21.3"
   },
   "overrides": {
-    "dompurify": "3.4.15",
-    "tar@^7": "7.5.22",
+    "dompurify": "3.4.17",
     "tsx": {
       "esbuild": "0.28.1"
     }
@@ -62,7 +62,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "prettier": "^3.9.6",
     "typescript": "^5.7.2",
-    "vercel": "^59.1.4",
-    "vite": "^6.0.3"
+    "vite": "^6.4.5"
   }
 }

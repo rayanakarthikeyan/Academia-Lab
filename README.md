@@ -137,11 +137,21 @@ With the development server running on port 5173, install Playwright in your dev
 
 ## Verification
 
+See the [2026-10-27 readiness verification](docs/readiness-2026-10-27.md) for the security changes, test results and deployment boundary.
+
 ```bash
 npm run typecheck
 npm run build
 npm audit
+npm audit --omit=dev
+npm run test:fullstack
 ```
+
+`test:fullstack` serves the built frontend with the real API handlers against disposable local data. It checks faculty/student sign-in, student registration, session restoration, sign-out and API access controls, then sends 2,000 authenticated read requests across 500 student records at concurrency 25. It does not load `.env.local` or modify the hosted database. Playwright/Chromium must be available, using the same `PLAYWRIGHT_MODULE` and `PLAYWRIGHT_EXECUTABLE_PATH` options as the beta suite. These local timings do not establish hosted Vercel/Supabase capacity.
+
+`npm run test:live` is an explicit, read-only deployment check. Supply `LIVE_TEST_URL`, `LIVE_FACULTY_EMAIL` and `LIVE_FACULTY_PASSWORD` securely through the environment. It verifies health, anonymous access denial, actual faculty sign-in, session restoration, five faculty views and sign-out. It never registers users, publishes work or changes hosted records. Do not commit credentials or include them in test logs.
+
+The optional Vercel CLI is no longer a project dependency because its current dependency tree retains upstream security advisories. Use `npm run dev` for the local frontend/API and the existing Vercel Git integration for deployments. The configured Vercel build still uses `npm run build` and `vercel.json`.
 
 Vercel is the configured deployment target. Add the server-only environment variables in the Vercel project before deployment and apply the Supabase migration first.
 
