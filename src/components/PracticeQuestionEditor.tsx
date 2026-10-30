@@ -13,7 +13,7 @@ export function PracticeQuestionEditor({
   const update = (id: string, patch: Partial<PracticeQuestion>) =>
     onChange(questions.map((q) => (q.id === id ? { ...q, ...patch } : q)));
   return (
-    <section className="border-b border-[var(--line)] p-5 space-y-4">
+    <section className="practice-question-editor border-b border-[var(--line)] p-5 space-y-4">
       <h3 className="font-semibold">Practice after this module</h3>
       <p className="text-sm text-[var(--muted)]">
         Attach {course === "JAVA" ? "Java" : "DBMS (SQL)"} questions. Students
@@ -98,7 +98,7 @@ export function PracticeQuestionEditor({
               onChange={(e) => update(q.id, { expectedOutput: e.target.value })}
             />
           </label>
-          <label className="flex items-center gap-2">
+          <label className="practice-submission-toggle">
             <input
               type="checkbox"
               checked={q.requireSubmission === true}

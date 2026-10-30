@@ -525,6 +525,61 @@ button:disabled {
   border-color: rgb(6 182 212 / 0.6);
   box-shadow: 0 0 0 3px rgb(6 182 212 / 0.08);
 }
+.practice-question-editor {
+  --field-border: #82959d;
+}
+:root.dark .practice-question-editor {
+  --field-border: #617982;
+}
+.practice-question-editor label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.practice-question-editor input:not([type="checkbox"]),
+.practice-question-editor select,
+.practice-question-editor textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.practice-question-editor textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.practice-question-editor textarea.font-mono {
+  min-height: 180px;
+}
+.practice-question-editor :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.practice-question-editor .practice-submission-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.practice-question-editor input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .search-control {
   display: flex;
   height: 38px;
