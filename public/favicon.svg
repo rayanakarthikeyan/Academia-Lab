@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>CogniXplore</title>
+  <rect width="64" height="64" rx="15" fill="#071014"/>
+  <path d="M42 18a20 20 0 1 0 0 28" fill="none" stroke="#22d3ee" stroke-width="9" stroke-linecap="round"/>
+  <path d="m46 19 3.5 8.5L58 31l-8.5 3.5L46 43l-3.5-8.5L34 31l8.5-3.5Z" fill="#fbbf24"/>
+</svg>
