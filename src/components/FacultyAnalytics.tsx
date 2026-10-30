@@ -1,7 +1,6 @@
 import { APP_NAME } from "../platform/branding";
 import { TutorInsights, TutorHistory } from "./TutorInsights";
 import { FacultyActivityHistory } from "./FacultyActivityHistory";
-import { TesterActivity } from "./TesterActivity";
 import {
   ArrowLeft,
   ArrowRight,
@@ -261,7 +260,6 @@ export function FacultyAnalytics({
     return (
       <div className="mx-auto max-w-[1440px] space-y-5">
         <h2 className="text-2xl font-semibold">Student insights</h2>
-        <TesterActivity token={session.token} assignments={assignments} />
         <button
           className="secondary-button"
           onClick={() => setInsightsView("coursework")}
@@ -327,7 +325,6 @@ export function FacultyAnalytics({
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
-      <TesterActivity token={session.token} assignments={assignments} />
       <button
         className="secondary-button"
         onClick={() => setInsightsView("tutor")}

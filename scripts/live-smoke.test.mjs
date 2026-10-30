@@ -51,6 +51,15 @@ try {
   await page
     .getByRole("button", { name: "Enrollment management", exact: true })
     .waitFor();
+  await page.waitForLoadState("networkidle");
+  assert.equal(
+    await page
+      .getByText("Tester activity · separate from student roster", {
+        exact: true,
+      })
+      .count(),
+    0,
+  );
   for (const name of [
     "Enrollment management",
     "Theory resources",
@@ -61,6 +70,14 @@ try {
     await page.getByRole("button", { name, exact: true }).click();
     await page.waitForLoadState("networkidle");
     assert.deepEqual(failures, [], `${name}: hosted API failures`);
+    assert.equal(
+      await page
+        .getByText("Tester activity · separate from student roster", {
+          exact: true,
+        })
+        .count(),
+      0,
+    );
   }
   assert.deepEqual(errors, []);
   await page.getByTitle("Sign out", { exact: true }).click();
