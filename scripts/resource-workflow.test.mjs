@@ -228,6 +228,128 @@ const review = await practice("GET", {}, ft);
 assert.equal(review.records.length, 1);
 assert.equal(review.people[0].id, a.user.id);
 assert.equal(review.records[0].metadata.input, "4 9");
+const roster = await practice("GET", {}, ft, { roster: "1" });
+assert.equal(roster.status, 200, JSON.stringify(roster));
+assert.deepEqual(
+  roster.students.map((p) => p.id).sort(),
+  [a.user.id, b.user.id].sort(),
+);
+assert.equal(
+  roster.students.find((p) => p.id === a.user.id).submissionCount,
+  1,
+);
+assert.equal(
+  roster.students.find((p) => p.id === b.user.id).submissionCount,
+  0,
+);
+assert.equal(
+  roster.students.find((p) => p.id === a.user.id).resourceSeconds,
+  8,
+);
+assert.ok(
+  roster.students.every(
+    (p) => p.body === undefined && p.password_hash === undefined,
+  ),
+);
+assert.equal((await practice("GET", {}, a.token, { roster: "1" })).status, 403);
+assert.equal(
+  (await practice("GET", {}, b.token, { studentId: a.user.id })).status,
+  403,
+);
+await db.from("learning_records").insert([
+  {
+    id: "resource-tutor-1",
+    kind: "ai_chat",
+    author_id: a.user.id,
+    title: `resource:${id}:sql-q`,
+    status: "answered",
+    body: "Explain the sum",
+    metadata: { role: "exchange", answer: "Add both values." },
+  },
+  {
+    id: "resource-tutor-other",
+    kind: "ai_chat",
+    author_id: a.user.id,
+    title: "resource:another-resource:sql-q",
+    status: "answered",
+    body: "Private unrelated conversation",
+    metadata: {},
+  },
+]);
+await db
+  .from("activity_logs")
+  .insert(
+    Array.from({ length: 1005 }, (_, i) => ({
+      id: `resource-time-${String(i).padStart(4, "0")}`,
+      user_id: a.user.id,
+      resource_id: id,
+      kind: "editor_change",
+      duration_seconds: 1,
+      metadata: { activity: "active_learning" },
+    })),
+  );
+const individual = await practice("GET", {}, ft, { studentId: a.user.id });
+assert.equal(individual.records[0].body, work.code);
+assert.equal(individual.resourceSeconds, 8);
+assert.equal(individual.practiceSeconds, 1005);
+assert.deepEqual(
+  individual.chats.map((r) => r.id),
+  ["resource-tutor-1"],
+);
+const pendingReview = await practice("GET", {}, ft, { studentId: b.user.id });
+assert.equal(pendingReview.records.length, 0);
+assert.equal(pendingReview.resourceSeconds, 0);
+const extra = Array.from({ length: 55 }, (_, i) => ({
+  id: `roster-${i}`,
+  name: `Roster ${i}`,
+  role: "student",
+  is_active: true,
+  department: "CSE",
+  year: "2",
+  section: "A",
+}));
+await db.from("users").insert(extra);
+await db
+  .from("enrollments")
+  .insert(
+    extra.map((p) => ({
+      id: `enroll-${p.id}`,
+      user_id: p.id,
+      course_id: "course-dbms",
+      status: "active",
+    })),
+  );
+const firstPage = await practice("GET", {}, ft, { roster: "1" });
+const secondPage = await practice("GET", {}, ft, { roster: "1", offset: "50" });
+assert.equal(firstPage.students.length, 50);
+assert.equal(firstPage.total, 57);
+assert.equal(secondPage.students.length, 7);
+assert.equal(
+  new Set([...firstPage.students, ...secondPage.students].map((p) => p.id))
+    .size,
+  57,
+);
+assert.equal(
+  (await practice("GET", {}, ft, { roster: "1", search: "StudentB" })).total,
+  1,
+);
+await db
+  .from("users")
+  .delete()
+  .in(
+    "id",
+    extra.map((p) => p.id),
+  );
+await db
+  .from("enrollments")
+  .delete()
+  .in(
+    "user_id",
+    extra.map((p) => p.id),
+  );
+console.log(
+  "PASS resource student roster includes pending students, cohort filters, private individual code, complete activity pagination, resource-scoped tutor chats, search and student pagination",
+);
 assert.equal(
   (
     await call(

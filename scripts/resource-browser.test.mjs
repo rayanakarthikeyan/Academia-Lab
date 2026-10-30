@@ -65,6 +65,52 @@ try {
         };
         submissions = [record];
         data = { record };
+      } else if (!student && url.searchParams.get("roster") === "1") {
+        data = {
+          students: [
+            {
+              id: "student-test",
+              name: "Test Student",
+              roll_number: "ROLL001",
+              resourceSeconds: 125,
+              submissionCount: submissions.length,
+            },
+            {
+              id: "pending-student",
+              name: "Pending Student",
+              submissionCount: 0,
+              resourceSeconds: 0,
+            },
+          ],
+          total: 2,
+          hasMore: false,
+        };
+      } else if (!student && url.searchParams.get("studentId")) {
+        const pending = url.searchParams.get("studentId") === "pending-student";
+        data = {
+          student: {
+            id: pending ? "pending-student" : "student-test",
+            name: pending ? "Pending Student" : "Test Student",
+          },
+          records: pending ? [] : submissions,
+          resourceSeconds: pending ? 0 : 125,
+          practiceSeconds: pending ? 0 : 60,
+          chats: pending
+            ? []
+            : [
+                {
+                  id: "chat-1",
+                  body: "Why add these?",
+                  status: "answered",
+                  metadata: {
+                    role: "exchange",
+                    answer: "Consider each value in the sum.",
+                  },
+                },
+              ],
+          hasMore: false,
+          hasMoreChats: false,
+        };
       } else
         data = {
           records: submissions,
@@ -138,8 +184,24 @@ try {
   await p
     .getByRole("button", { name: "Practice submissions", exact: true })
     .click();
-  await p.getByText(/Test Student · Own data SQL/).click();
+  await p
+    .getByRole("button", { name: "Open submissions for Pending Student" })
+    .click();
+  await p.getByText("No practice submissions for this student.").waitFor();
+  await p.getByRole("button", { name: "Back to students" }).click();
+  await p
+    .getByRole("button", { name: "Open submissions for Test Student" })
+    .click();
+  await p.getByText("2m 5s", { exact: true }).waitFor();
+  await p.getByText(/Consider each value in the sum/).waitFor();
   await p.getByText("SELECT 7 + 8 AS total;", { exact: true }).waitFor();
+  await p.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await p.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  );
+  await p.setViewportSize({ width: 1440, height: 1000 });
   await p.getByRole("button", { name: "Unpublish", exact: true }).click();
   await p.getByText(/Resource unpublished/).waitFor();
   await p.goto(base + "?student");

@@ -366,6 +366,9 @@ export function FacultyResourceManager({
         <ResourcePracticeReports
           token={token}
           resourceId={reviewId}
+          resourceTitle={
+            resources.find((resource) => resource.id === reviewId)?.title
+          }
           onClose={() => setReviewId("")}
         />
       )}
